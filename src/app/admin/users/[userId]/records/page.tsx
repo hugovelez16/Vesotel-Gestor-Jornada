@@ -17,15 +17,73 @@ import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Loader2 } from "lucide-react";
-import { useMemo, use } from "react";
+import { useMemo, use, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
+
+function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkLog | null, isOpen: boolean, onOpenChange: (open: boolean) => void }) {
+    if (!log) return null;
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Detalles del Registro</DialogTitle>
+                    <DialogDescription>
+                        Información completa del registro de jornada.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 text-sm">
+                    <div className="flex items-center gap-2">
+                        <strong>Tipo:</strong> <Badge variant={log.type === 'particular' ? 'secondary' : 'default'}>{log.type}</Badge>
+                    </div>
+                    {log.type === 'particular' ? (
+                        <>
+                            <div><strong>Fecha:</strong> {log.date ? format(parseISO(log.date), 'PPP', { locale: es }) : '-'}</div>
+                            <div><strong>Hora Inicio:</strong> {log.startTime ?? '-'}</div>
+                            <div><strong>Hora Fin:</strong> {log.endTime ?? '-'}</div>
+                            <div><strong>Duración:</strong> {log.duration ?? '-'} horas</div>
+                        </>
+                    ) : (
+                        <>
+                            <div><strong>Fecha Inicio:</strong> {log.startDate ? format(parseISO(log.startDate), 'PPP', { locale: es }) : '-'}</div>
+                            <div><strong>Fecha Fin:</strong> {log.endDate ? format(parseISO(log.endDate), 'PPP', { locale: es }) : '-'}</div>
+                        </>
+                    )}
+                    <div><strong>Descripción:</strong> {log.description}</div>
+                    <div className="font-bold text-lg text-green-600">Importe: €{log.amount?.toFixed(2) ?? '0.00'}</div>
+                    <div><strong>Tarifa Aplicada:</strong> €{log.rateApplied?.toFixed(2)}/h</div>
+                    <div className="space-y-2 pt-2">
+                        <div className="flex items-center gap-2">
+                            <Switch checked={log.isGrossCalculation} disabled id="isGross" />
+                            <Label htmlFor="isGross">Cálculo en Bruto (IRPF)</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Switch checked={log.hasCoordination} disabled id="hasCoordination" />
+                            <Label htmlFor="hasCoordination">Plus Coordinación</Label>
+                        </div>
+                        {log.type === 'tutorial' && (
+                            <div className="flex items-center gap-2">
+                                <Switch checked={log.arrivesPrior} disabled id="arrivesPrior" />
+                                <Label htmlFor="arrivesPrior">Llegada Día Anterior</Label>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 function UserWorkLogs({ userId }: { userId: string }) {
   const firestore = useFirestore();
+  const [selectedLog, setSelectedLog] = useState<WorkLog | null>(null);
 
   const workLogsRef = useMemoFirebase(
     () => userId ? collection(firestore, `artifacts/${APP_ID}/users/${userId}/work_logs`) : null,
@@ -44,6 +102,10 @@ function UserWorkLogs({ userId }: { userId: string }) {
     });
   }, [workLogs]);
 
+  const handleRowClick = (log: WorkLog) => {
+    setSelectedLog(log);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -54,6 +116,7 @@ function UserWorkLogs({ userId }: { userId: string }) {
   }
 
   return (
+    <>
     <Card>
         <CardHeader>
             <CardTitle>Historial de Registros</CardTitle>
@@ -74,7 +137,7 @@ function UserWorkLogs({ userId }: { userId: string }) {
                 <TableBody>
                     {sortedWorkLogs && sortedWorkLogs.length > 0 ? (
                     sortedWorkLogs.map((log) => (
-                        <TableRow key={log.id}>
+                        <TableRow key={log.id} onClick={() => handleRowClick(log)} className="cursor-pointer">
                         <TableCell>
                             <Badge variant={log.type === 'particular' ? 'secondary' : 'default'}>{log.type}</Badge>
                         </TableCell>
@@ -100,6 +163,8 @@ function UserWorkLogs({ userId }: { userId: string }) {
             </div>
         </CardContent>
     </Card>
+    <WorkLogDetailsDialog log={selectedLog} isOpen={!!selectedLog} onOpenChange={(isOpen) => !isOpen && setSelectedLog(null)} />
+    </>
   );
 }
 
