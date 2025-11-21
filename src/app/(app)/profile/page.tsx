@@ -22,12 +22,12 @@ export default function ProfilePage() {
     const [isLoading, setIsLoading] = useState(false);
     
     const settingsRef = useMemoFirebase(
-      () => user ? doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`) : null,
+      () => user && firestore ? doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`) : null,
       [firestore, user]
     );
 
     const profileRef = useMemoFirebase(
-      () => user ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.uid) : null,
+      () => user && firestore ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.uid) : null,
       [firestore, user]
     );
 
@@ -39,7 +39,9 @@ export default function ProfilePage() {
 
 
     const logout = () => {
-      signOut(auth);
+      if (auth) {
+        signOut(auth);
+      }
     }
     
     useEffect(() => {
@@ -47,22 +49,24 @@ export default function ProfilePage() {
             setFirstName(profile.firstName || '');
             setLastName(profile.lastName || '');
         } else if (user) {
-            setFirstName(user.displayName?.split(' ')[0] || '');
-            setLastName(user.displayName?.split(' ').slice(1).join(' ') || '');
+            const nameParts = user.displayName?.split(' ') || [];
+            setFirstName(nameParts[0] || '');
+            setLastName(nameParts.slice(1).join(' ') || '');
         }
     }, [user, profile]);
 
 
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (!user) return;
+        if (!user || !firestore) return;
         setIsLoading(true);
 
         const formData = new FormData(e.currentTarget);
         const newFirstName = formData.get("firstName") as string;
         const newLastName = formData.get("lastName") as string;
         
-        const newSettingsData = {
+        // Data for settings document
+        const newSettingsData: UserSettings = {
             userId: user.uid,
             firstName: newFirstName,
             lastName: newLastName,
@@ -73,29 +77,33 @@ export default function ProfilePage() {
             isGross: formData.get("isGross") === "on",
         };
 
-        const newProfileData = {
+        // Data for public profile document
+        const newProfileData: UserProfile = {
             uid: user.uid,
-            email: user.email,
+            email: user.email!,
             firstName: newFirstName,
             lastName: newLastName,
-            lastLogin: serverTimestamp(),
+            lastLogin: serverTimestamp() as any, // Cast to any to satisfy type until server write
             type: 'user_registry'
         };
 
         try {
-            // CRITICAL FIX: Use the user's UID as the document ID for their profile and settings
+            // Define references with explicit UID
             const profileDocRef = doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.uid);
             const settingsDocRef = doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`);
             
-            await setDoc(profileDocRef, newProfileData, { merge: true });
-            await setDoc(settingsDocRef, newSettingsData, { merge: true });
+            // Atomically write to both documents
+            await Promise.all([
+              setDoc(profileDocRef, newProfileData, { merge: true }),
+              setDoc(settingsDocRef, newSettingsData, { merge: true })
+            ]);
             
             toast({
                 title: "Éxito",
                 description: "Tus ajustes se han guardado correctamente.",
             });
         } catch (error: any) {
-            console.error(error);
+            console.error("Error saving profile and settings:", error);
             toast({
                 title: "Error",
                 description: error.message || "No se pudieron guardar los ajustes.",
@@ -131,11 +139,11 @@ export default function ProfilePage() {
                     <CardContent className="grid gap-6 md:grid-cols-2">
                         <div className="space-y-2">
                             <Label htmlFor="firstName">Nombre</Label>
-                            <Input id="firstName" name="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                            <Input id="firstName" name="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="lastName">Apellidos</Label>
-                            <Input id="lastName" name="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                            <Input id="lastName" name="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
                         </div>
                         <div className="space-y-2 md:col-span-2">
                             <Label htmlFor="email">Email</Label>
