@@ -100,24 +100,24 @@ function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkLog | nu
     );
 }
 
-function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, userSettings: UserSettings | null, onLogUpdate: () => void }) {
+function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate }: { log: WorkLog, userId: string, userSettings: UserSettings | null, onLogUpdate: () => void }) {
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [logType, setLogType] = useState<'particular' | 'tutorial'>(log.type);
-    const [formData, setFormData] = useState<Partial<WorkLog>>({ ...log, userId: log.userId });
+    const [formData, setFormData] = useState<Partial<WorkLog>>({ ...log });
     const firestore = useFirestore();
     const { toast } = useToast();
 
     useEffect(() => {
         if(open) {
             setLogType(log.type);
-            setFormData({ ...log, userId: log.userId });
+            setFormData({ ...log });
         }
     }, [log, open]);
 
     useEffect(() => {
         if (logType === 'particular') {
-            setFormData(prev => ({...prev, arrivesPrior: false, hasNight: false}));
+            setFormData(prev => ({...prev, hasNight: false, arrivesPrior: false}));
         }
     }, [logType]);
 
@@ -143,12 +143,12 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
     };
 
     const handleSubmit = async () => {
-        if (!firestore || !userSettings || !log.userId) {
+        if (!firestore || !userSettings || !userId) {
             let errorDescription = "No se pudieron cargar los datos necesarios para actualizar. Faltan datos: ";
             const missingData = [];
             if (!firestore) missingData.push("firestore");
             if (!userSettings) missingData.push("userSettings");
-            if (!log.userId) missingData.push("log.userId");
+            if (!userId) missingData.push("userId");
             errorDescription += missingData.join(', ');
 
             toast({ title: "Error", description: errorDescription, variant: "destructive" });
@@ -159,7 +159,7 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
         const updatedLogData: Partial<WorkLog> = { 
             ...formData, 
             type: logType,
-            userId: log.userId // Ensure userId is always present from the original log
+            userId: userId
         };
 
         const { amount, isGross, rateApplied, duration } = calculateEarnings(updatedLogData, userSettings);
@@ -173,7 +173,7 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
         }
 
         try {
-            const logDocRef = doc(firestore, `artifacts/${APP_ID}/users/${log.userId}/work_logs`, log.id);
+            const logDocRef = doc(firestore, `artifacts/${APP_ID}/users/${userId}/work_logs`, log.id);
             await updateDoc(logDocRef, finalData);
             toast({ title: "Éxito", description: "Registro de trabajo actualizado correctamente." });
             setOpen(false);
@@ -332,16 +332,16 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
     )
 }
 
-function DeleteWorkLogAlert({ log, onLogUpdate }: { log: WorkLog, onLogUpdate: () => void }) {
+function DeleteWorkLogAlert({ log, userId, onLogUpdate }: { log: WorkLog, userId: string, onLogUpdate: () => void }) {
     const [isLoading, setIsLoading] = useState(false);
     const firestore = useFirestore();
     const { toast } = useToast();
 
     const handleDelete = async () => {
-        if (!firestore) return;
+        if (!firestore || !userId) return;
         setIsLoading(true);
         try {
-            const logDocRef = doc(firestore, `artifacts/${APP_ID}/users/${log.userId}/work_logs`, log.id);
+            const logDocRef = doc(firestore, `artifacts/${APP_ID}/users/${userId}/work_logs`, log.id);
             await deleteDoc(logDocRef);
             toast({ title: "Éxito", description: "El registro ha sido eliminado." });
             onLogUpdate();
@@ -386,7 +386,7 @@ function UserWorkLogs({ userId, userSettings }: { userId: string, userSettings: 
 
   const workLogsRef = useMemoFirebase(
     () => userId ? collection(firestore, `artifacts/${APP_ID}/users/${userId}/work_logs`) : null,
-    [firestore, userId, refreshKey] // Add refreshKey to dependencies
+    [firestore, userId, refreshKey]
   );
 
   const { data: workLogs, isLoading } = useCollection<WorkLog>(workLogsRef);
@@ -454,8 +454,8 @@ function UserWorkLogs({ userId, userSettings }: { userId: string, userSettings: 
                           <TableCell className="text-right font-medium">€{log.amount?.toFixed(2) ?? '0.00'}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
-                                <EditWorkLogDialog log={log} userSettings={userSettings} onLogUpdate={handleLogUpdate} />
-                                <DeleteWorkLogAlert log={log} onLogUpdate={handleLogUpdate} />
+                                <EditWorkLogDialog log={log} userId={userId} userSettings={userSettings} onLogUpdate={handleLogUpdate} />
+                                <DeleteWorkLogAlert log={log} userId={userId} onLogUpdate={handleLogUpdate} />
                             </div>
                           </TableCell>
                         </TableRow>
@@ -522,5 +522,3 @@ export default function UserRecordsPage({ params }: { params: { userId: string }
     </div>
   );
 }
-
-    
