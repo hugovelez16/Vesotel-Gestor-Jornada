@@ -2,7 +2,7 @@
 "use client";
 
 import { useFirestore, useMemoFirebase, useCollection, useUser } from "@/firebase";
-import { collection, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, query, getDocs } from "firebase/firestore";
+import { collection, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, query, getDocs, getDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -424,7 +424,7 @@ export default function AdminUsersPage() {
                         isLoading,
                         users,
                         (user) => (
-                           <TableRow key={user.uid} className="cursor-pointer">
+                           <TableRow key={user.uid}>
                                 <TableCell>
                                     <Link href={`/admin/users/${user.uid}`} className="hover:underline">
                                         {user.firstName} {user.lastName}
@@ -501,5 +501,3 @@ export default function AdminUsersPage() {
     </div>
   );
 }
-
-    
