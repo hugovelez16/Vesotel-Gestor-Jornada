@@ -68,7 +68,7 @@ function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkLog | nu
                     <div className="font-bold text-lg text-green-600">Importe: €{log.amount?.toFixed(2) ?? '0.00'}</div>
                     <div><strong>Tarifa Aplicada:</strong> €{log.rateApplied?.toFixed(2)}/h</div>
                      <div className="pt-2">
-                        <strong>Cálculo de importe:</strong> {log.isGrossCalculation ? 'Precios en bruto' : 'Precios en neto'}
+                        <strong>Cálculo de importe:</strong> {log.isGrossCalculation ? 'Bruto' : 'Neto'}
                     </div>
                     <div className="space-y-2 pt-2">
                          <div className="flex items-center gap-2">
@@ -104,7 +104,7 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [logType, setLogType] = useState<'particular' | 'tutorial'>(log.type);
-    const [formData, setFormData] = useState<Partial<WorkLog>>({ ...log });
+    const [formData, setFormData] = useState<Partial<WorkLog>>({ ...log, userId: log.userId });
     const firestore = useFirestore();
     const { toast } = useToast();
 
@@ -117,7 +117,7 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
 
     useEffect(() => {
         if (logType === 'particular') {
-            setFormData(prev => ({...prev, arrivesPrior: false}));
+            setFormData(prev => ({...prev, arrivesPrior: false, hasNight: false}));
         }
     }, [logType]);
 
@@ -159,7 +159,7 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
         const updatedLogData: Partial<WorkLog> = { 
             ...formData, 
             type: logType,
-            userId: log.userId
+            userId: log.userId // Ensure userId is always present from the original log
         };
 
         const { amount, isGross, rateApplied, duration } = calculateEarnings(updatedLogData, userSettings);
@@ -382,15 +382,15 @@ function DeleteWorkLogAlert({ log, onLogUpdate }: { log: WorkLog, onLogUpdate: (
 function UserWorkLogs({ userId, userSettings }: { userId: string, userSettings: UserSettings | null }) {
   const firestore = useFirestore();
   const [selectedLog, setSelectedLog] = useState<WorkLog | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const workLogsRef = useMemoFirebase(
     () => userId ? collection(firestore, `artifacts/${APP_ID}/users/${userId}/work_logs`) : null,
-    [firestore, userId]
+    [firestore, userId, refreshKey] // Add refreshKey to dependencies
   );
 
-  const { data: workLogs, isLoading, error: collectionError } = useCollection<WorkLog>(workLogsRef);
-
-  const [refreshKey, setRefreshKey] = useState(0);
+  const { data: workLogs, isLoading } = useCollection<WorkLog>(workLogsRef);
+  
   const handleLogUpdate = () => {
       setRefreshKey(prev => prev + 1);
   };
@@ -403,7 +403,7 @@ function UserWorkLogs({ userId, userSettings }: { userId: string, userSettings: 
       if (!dateA || !dateB) return 0;
       return parseISO(dateB).getTime() - parseISO(dateA).getTime();
     });
-  }, [workLogs, refreshKey]);
+  }, [workLogs]);
 
   const handleRowClick = (log: WorkLog) => {
     setSelectedLog(log);
@@ -522,3 +522,5 @@ export default function UserRecordsPage({ params }: { params: { userId: string }
     </div>
   );
 }
+
+    
