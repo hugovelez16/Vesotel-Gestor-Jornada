@@ -218,34 +218,15 @@ function AdminTimeline() {
     };
     
     const renderLog = (log: WorkLog) => {
-        const isTutorial = log.type === 'tutorial';
         let left = 0;
         let width = 0;
-        
-        const selectedDayStr = format(selectedDate, 'yyyy-MM-dd');
 
-        if (isTutorial && log.startDate && log.endDate) {
-             const logStartDay = format(parseISO(log.startDate), 'yyyy-MM-dd');
-             const logEndDay = format(parseISO(log.endDate), 'yyyy-MM-dd');
-
-             const startsToday = logStartDay === selectedDayStr;
-             const endsToday = logEndDay === selectedDayStr;
-             const isWithin = selectedDayStr > logStartDay && selectedDayStr < logEndDay;
-             
-             if(startsToday) {
-                const startPos = log.startTime ? timeToPosition(log.startTime) : 0;
-                const endPos = endsToday && log.endTime ? timeToPosition(log.endTime) : 100;
-                left = startPos;
-                width = endPos - startPos;
-             } else if (endsToday) {
-                const endPos = log.endTime ? timeToPosition(log.endTime) : 100;
-                left = 0;
-                width = endPos;
-             } else if(isWithin) {
-                left = 0;
-                width = 100;
-             }
-        } else if (log.type === 'particular' && log.startTime && log.endTime) { 
+        if (log.type === 'tutorial') {
+            const startPos = timeToPosition('09:00');
+            const endPos = timeToPosition('16:00');
+            left = startPos;
+            width = endPos - startPos;
+        } else if (log.type === 'particular' && log.startTime && log.endTime) {
             const startPos = timeToPosition(log.startTime);
             const endPos = timeToPosition(log.endTime);
             left = startPos;
@@ -253,19 +234,23 @@ function AdminTimeline() {
         }
 
         if (width <= 0) return null;
+        
+        const displayStartTime = log.type === 'particular' ? log.startTime : '09:00';
+        const displayEndTime = log.type === 'particular' ? log.endTime : '16:00';
+
 
         return (
             <div
                 key={log.id}
                 className={cn(
                     "absolute top-1/2 -translate-y-1/2 h-12 rounded-lg p-2 text-white shadow-md flex flex-col justify-center",
-                    isTutorial ? "bg-purple-500/90" : "bg-blue-500/90"
+                    log.type === 'tutorial' ? "bg-purple-500/90" : "bg-blue-500/90"
                 )}
                 style={{ left: `${left}%`, width: `${width}%` }}
-                title={`${log.description} (${log.startTime ?? ''} - ${log.endTime ?? ''})`}
+                title={`${log.description} (${displayStartTime ?? ''} - ${displayEndTime ?? ''})`}
             >
                 <p className="truncate text-xs font-semibold">{log.description}</p>
-                <p className="truncate text-xs">{log.startTime} - {log.endTime}</p>
+                <p className="truncate text-xs">{displayStartTime} - {displayEndTime}</p>
             </div>
         )
     }
@@ -406,3 +391,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
