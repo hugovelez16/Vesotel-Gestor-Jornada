@@ -60,25 +60,13 @@ function MonthlySummary({ userId }: { userId: string }) {
 
     workLogs.forEach(log => {
       const logDate = log.date ? parseISO(log.date) : (log.startDate ? parseISO(log.startDate) : null);
-      if (!logDate || getYear(logDate) !== currentYear || getMonth(logDate) !== currentMonth) {
-        // For tutorials spanning months, we might need more complex logic, but this is a start.
-        // Let's check if the range intersects with the current month for tutorials
-        if(log.type === 'tutorial' && log.startDate && log.endDate) {
-            const start = parseISO(log.startDate);
-            const end = parseISO(log.endDate);
-            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                if (getYear(d) === currentYear && getMonth(d) === currentMonth) {
-                    workedDays.add(format(d, 'yyyy-MM-dd'));
-                    tutorialDays += 1;
-                }
-            }
-        }
-        return;
-      }
-
+      
       if (log.type === 'particular' && log.date) {
-        particularHours += log.duration || 0;
-        workedDays.add(log.date);
+        const d = parseISO(log.date);
+        if(getMonth(d) === currentMonth && getYear(d) === currentYear){
+          particularHours += log.duration || 0;
+          workedDays.add(log.date);
+        }
       } else if (log.type === 'tutorial' && log.startDate && log.endDate) {
         const start = parseISO(log.startDate);
         const end = parseISO(log.endDate);
