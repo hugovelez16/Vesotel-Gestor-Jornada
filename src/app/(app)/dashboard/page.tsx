@@ -140,7 +140,7 @@ function AdminTimeline({ selectedDate, setSelectedDate }: { selectedDate: Date, 
                 <div className="relative" style={{ minWidth: `${hourMarkers.length * 80}px` }}>
                     {/* Headers */}
                     <div className="flex border-b">
-                         <div className="sticky left-0 z-10 w-56 flex-shrink-0 border-r bg-card p-2">
+                         <div className="sticky left-0 z-20 w-56 flex-shrink-0 border-r bg-card p-2">
                             <span className="font-semibold">USUARIO</span>
                         </div>
                         <div className="flex">
@@ -176,7 +176,7 @@ function AdminTimeline({ selectedDate, setSelectedDate }: { selectedDate: Date, 
                                         <Avatar>
                                             <AvatarFallback>{getInitials(`${user.firstName} ${user.lastName}`)}</AvatarFallback>
                                         </Avatar>
-                                        <div>
+                                        <div className="overflow-hidden">
                                             <p className="font-semibold truncate">{user.firstName} {user.lastName}</p>
                                             <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                                         </div>
