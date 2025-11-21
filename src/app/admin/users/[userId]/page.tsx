@@ -10,17 +10,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useParams } from "next/navigation";
 
-export default function UserDetailPage({ params }: { params: { userId: string } }) {
+export default function UserDetailPage() {
   const firestore = useFirestore();
-  const { userId } = params;
+  const params = useParams();
+  const userId = params.userId as string;
 
   const userProfileRef = useMemoFirebase(
-    () => doc(firestore, `artifacts/${APP_ID}/public/data/users`, userId),
+    () => userId ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, userId) : null,
     [firestore, userId]
   );
   const userSettingsRef = useMemoFirebase(
-    () => doc(firestore, `artifacts/${APP_ID}/users/${userId}/settings/config`),
+    () => userId ? doc(firestore, `artifacts/${APP_ID}/users/${userId}/settings/config`) : null,
     [firestore, userId]
   );
 
