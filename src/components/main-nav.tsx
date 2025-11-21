@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useUser, useAuth as useFirebaseAuth } from "@/firebase";
+import { useUser, useAuth as useFirebaseAuth, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -30,9 +30,11 @@ import {
 } from "./ui/dropdown-menu";
 import { Button } from "./ui/button";
 import { signOut } from "firebase/auth";
-import { ADMIN_EMAIL } from "@/lib/config";
+import { ADMIN_EMAIL, APP_ID } from "@/lib/config";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { doc } from "firebase/firestore";
+import type { UserProfile } from "@/lib/types";
 
 const mainNavItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -47,22 +49,39 @@ const adminNavItems = [
 export default function MainNav() {
   const { user } = useUser();
   const auth = useFirebaseAuth();
+  const firestore = useFirestore();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const isAdmin = user?.email === ADMIN_EMAIL;
+  const profileRef = useMemoFirebase(
+    () => (user && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.uid) : null,
+    [firestore, user]
+  );
+  const { data: profile } = useDoc<UserProfile>(profileRef);
 
-  const getInitials = (name: string) => {
+  const isAdmin = user?.email === ADMIN_EMAIL;
+  
+  const getDisplayName = () => {
+    if (profile?.firstName) {
+      return `${profile.firstName} ${profile.lastName || ''}`.trim();
+    }
+    return user?.displayName || user?.email;
+  }
+  
+  const getInitials = (name: string | null) => {
+    if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   }
   
   const logout = () => {
-    signOut(auth);
+    if (auth) {
+        signOut(auth);
+    }
   }
 
   const NavLinks = ({ onClick }: { onClick?: () => void }) => (
     [...(isAdmin ? adminNavItems : []), ...mainNavItems].map((item) => {
-      const isActive = pathname === item.href;
+      const isActive = pathname === item.href || (item.href === "/admin/users" && pathname.startsWith("/admin/users"));
       return (
         <Link
           key={item.href}
@@ -81,6 +100,8 @@ export default function MainNav() {
   );
 
   if (!user) return null;
+  
+  const displayName = getDisplayName();
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
@@ -119,8 +140,8 @@ export default function MainNav() {
           <DropdownMenuTrigger asChild>
             <Button variant="secondary" size="icon" className="rounded-full">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={user?.photoURL ?? ""} alt={user?.displayName ?? ""} />
-                <AvatarFallback>{user?.displayName ? getInitials(user.displayName) : 'U'}</AvatarFallback>
+                <AvatarImage src={user?.photoURL ?? ""} alt={displayName ?? ""} />
+                <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
               </Avatar>
               <span className="sr-only">Toggle user menu</span>
             </Button>
@@ -128,7 +149,7 @@ export default function MainNav() {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user?.displayName}</p>
+                <p className="text-sm font-medium leading-none">{displayName}</p>
                 <p className="text-xs leading-none text-muted-foreground">
                   {user?.email}
                 </p>
