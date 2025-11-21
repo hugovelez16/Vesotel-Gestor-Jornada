@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useFirestore, useMemoFirebase, useCollection, useUser } from "@/firebase";
+import { useFirestore, useMemoFirebase, useCollection, useUser, useDoc } from "@/firebase";
 import { collection, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, getDocs, getDoc, setDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -841,3 +841,5 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+
+    
