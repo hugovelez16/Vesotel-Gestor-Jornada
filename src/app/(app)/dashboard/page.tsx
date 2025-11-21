@@ -1,18 +1,22 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useUser } from "@/firebase";
 import { ADMIN_EMAIL } from "@/lib/config";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Loader2 } from "lucide-react";
+import { PlusCircle, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import { APP_ID } from "@/lib/config";
-import type { WorkLog } from "@/lib/types";
-import { format, parseISO } from "date-fns";
+import type { WorkLog, UserProfile } from "@/lib/types";
+import { format, parse, addDays, subDays, parseISO } from "date-fns";
+import { es } from "date-fns/locale";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 
 function UserDashboard() {
   return (
@@ -53,66 +57,171 @@ function UserDashboard() {
   );
 }
 
-function AdminTimeline({ selectedDate }: { selectedDate: Date }) {
+const HOURS_IN_DAY = 24;
+const timeToPercentage = (time: string): number => {
+    const [hours, minutes] = time.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes;
+    return (totalMinutes / (HOURS_IN_DAY * 60)) * 100;
+};
+
+const getInitials = (name: string | null | undefined = ''): string => {
+    if (!name) return 'U';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+}
+
+
+function AdminTimeline({ selectedDate, setSelectedDate }: { selectedDate: Date, setSelectedDate: (date: Date) => void }) {
     const firestore = useFirestore();
 
-    // Note: This is not the most scalable query. For a large number of users,
-    // you would structure your data to query by date across all users more efficiently.
-    // For now, this demonstrates the concept.
-    const worklogsRef = useMemoFirebase(() => {
-        const dateStr = format(selectedDate, "yyyy-MM-dd");
-        const allLogs: any[] = [];
-        // This is a placeholder for querying all user's worklogs.
-        // A real implementation would need a more complex query structure or data duplication.
-        // For this example, we assume work_logs are globally queryable by date.
-        // This might require a root-level `work_logs` collection.
-        // As per current structure, this won't work without iterating users.
-        // Let's pretend we have a flat structure for demonstration.
-        return query(
-            collection(firestore, `artifacts/${APP_ID}/public/data/work_logs_flat`), 
-            where("date", "==", dateStr)
-        );
-    }, [firestore, selectedDate]);
-    
-    // const { data: workLogs, isLoading } = useCollection<WorkLog>(worklogsRef);
-    
-    // MOCK DATA since the query above is not feasible with the current structure
-    const isLoading = false;
-    const workLogs = [
-        { id: '1', userId: 'user1', description: 'Turno de mañana', startTime: '08:00', endTime: '16:00', type: 'particular', hasCoordination: false, hasNight: false, arrivesPrior: false, amount: 120, isGrossCalculation: false, rateApplied: 15, date: format(selectedDate, "yyyy-MM-dd") },
-        { id: '2', userId: 'user2', description: 'Turno de tarde', startTime: '16:00', endTime: '23:00', type: 'particular', hasCoordination: true, hasNight: false, arrivesPrior: false, amount: 150, isGrossCalculation: false, rateApplied: 15, date: format(selectedDate, "yyyy-MM-dd") },
-    ] as WorkLog[];
+    const usersRef = useMemoFirebase(() => collection(firestore, `artifacts/${APP_ID}/public/data/users`), [firestore]);
+    const { data: users, isLoading: isLoadingUsers } = useCollection<UserProfile>(usersRef);
 
+    // MOCK DATA for worklogs - a real implementation would query all logs for the selectedDate
+    // This is complex with Firestore rules and might require data duplication (e.g., a flat work_logs collection)
+    const { data: workLogs, isLoading: isLoadingLogs } = useMemo(() => {
+        if (!users) return { data: [], isLoading: true };
+
+        // Mock data logic
+        const mockData: WorkLog[] = users.flatMap(user => {
+            if (user.email.includes("hugo")) {
+                 return [{ 
+                    id: `1-${user.uid}`, userId: user.uid, description: 'Clase Particular', 
+                    startTime: '09:00', endTime: '14:00', type: 'particular', date: format(selectedDate, "yyyy-MM-dd"),
+                    hasCoordination: false, hasNight: false, arrivesPrior: false, amount: 120, isGrossCalculation: false, rateApplied: 15, createdAt: new Date() as any
+                 }];
+            }
+             if (user.email.includes("gutierrez")) {
+                 return [{ 
+                    id: `2-${user.uid}`, userId: user.uid, description: 'IES Pablo del Saz', 
+                    startTime: '09:00', endTime: '16:00', type: 'tutorial', date: format(selectedDate, "yyyy-MM-dd"),
+                    hasCoordination: false, hasNight: false, arrivesPrior: false, amount: 120, isGrossCalculation: false, rateApplied: 15, createdAt: new Date() as any
+                 }];
+            }
+            return [];
+        });
+        
+        return { data: mockData, isLoading: false };
+
+    }, [users, selectedDate]);
+    
+    const isLoading = isLoadingUsers || isLoadingLogs;
+
+    const hourMarkers = Array.from({ length: 17 }, (_, i) => 7 + i); // 7:00 to 23:00
 
     return (
-        <Card>
+        <Card className="w-full">
             <CardHeader>
-                <CardTitle>Timeline del Día - {format(selectedDate, "PPP")}</CardTitle>
+                <CardTitle className="text-2xl">Cronograma de Trabajo Diario</CardTitle>
+                 <div className="flex items-center justify-between pt-2">
+                    <div className="flex items-center gap-2">
+                        <span className="font-semibold text-lg">Cronograma Diario</span>
+                        <Button variant="ghost" size="icon" onClick={() => setSelectedDate(subDays(selectedDate, 1))}>
+                            <ChevronLeft className="h-5 w-5" />
+                        </Button>
+                        <span className="text-lg font-medium">{format(selectedDate, "dd/MM/yyyy")}</span>
+                        <Button variant="ghost" size="icon" onClick={() => setSelectedDate(addDays(selectedDate, 1))}>
+                            <ChevronRight className="h-5 w-5" />
+                        </Button>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <div className="h-4 w-4 rounded-sm bg-blue-500" />
+                            <span className="text-sm">Particular</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="h-4 w-4 rounded-sm bg-purple-500" />
+                            <span className="text-sm">Tutorial</span>
+                        </div>
+                    </div>
+                </div>
             </CardHeader>
             <CardContent>
-                {isLoading && <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /><p className="ml-2">Cargando turnos...</p></div>}
-                
-                {!isLoading && workLogs && workLogs.length > 0 && (
-                    <div className="relative h-auto">
-                        {/* A basic timeline representation */}
-                        <div className="space-y-4">
-                            {workLogs.map(log => (
-                                <div key={log.id} className="rounded-lg border p-4">
-                                    <p className="font-semibold">{log.description} ({log.userId})</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        {log.startTime} - {log.endTime}
-                                    </p>
+                <ScrollArea className="w-full whitespace-nowrap">
+                <div className="relative" style={{ minWidth: `${hourMarkers.length * 80}px` }}>
+                    {/* Headers */}
+                    <div className="flex border-b">
+                         <div className="sticky left-0 z-10 w-56 flex-shrink-0 border-r bg-card p-2">
+                            <span className="font-semibold">USUARIO</span>
+                        </div>
+                        <div className="flex">
+                            {hourMarkers.map(hour => (
+                                <div key={hour} className="w-20 flex-shrink-0 p-2 text-right text-sm text-muted-foreground">
+                                    {`${hour}:00`}
                                 </div>
                             ))}
                         </div>
                     </div>
-                )}
 
-                {!isLoading && (!workLogs || workLogs.length === 0) && (
-                    <div className="h-48 w-full rounded-lg border border-dashed flex items-center justify-center">
-                        <p className="text-muted-foreground">No hay turnos registrados para este día.</p>
+                    {/* Body */}
+                    <div className="relative">
+                       {/* Grid lines */}
+                        <div className="absolute top-0 left-56 right-0 bottom-0 flex">
+                            {hourMarkers.map(hour => (
+                                <div key={`grid-${hour}`} className="w-20 flex-shrink-0 border-r"></div>
+                            ))}
+                        </div>
+
+                        {isLoading && (
+                             <div className="flex h-64 items-center justify-center">
+                                <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                                <span>Cargando cronograma...</span>
+                            </div>
+                        )}
+                        
+                        {!isLoading && users && users.map(user => {
+                            const userLogs = workLogs?.filter(log => log.userId === user.uid) ?? [];
+                            return (
+                                <div key={user.uid} className="flex h-20 items-center border-b">
+                                    <div className="sticky left-0 z-10 w-56 flex-shrink-0 border-r bg-card p-2 flex items-center gap-3">
+                                        <Avatar>
+                                            <AvatarFallback>{getInitials(`${user.firstName} ${user.lastName}`)}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <p className="font-semibold truncate">{user.firstName} {user.lastName}</p>
+                                            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                                        </div>
+                                    </div>
+                                    <div className="relative h-full flex-grow">
+                                        {userLogs.map(log => {
+                                            if (!log.startTime || !log.endTime) return null;
+
+                                            const startHour = parseInt(log.startTime.split(':')[0]);
+                                            const endHour = parseInt(log.endTime.split(':')[0]);
+
+                                            if (startHour < 7 || endHour > 23) return null; // Only show events within the visible hours
+                                            
+                                            const left = `${((startHour - 7) / hourMarkers.length) * 100}%`;
+                                            const width = `${((endHour - startHour) / hourMarkers.length) * 100}%`;
+                                            
+                                            const bgColor = log.type === 'particular' ? 'bg-blue-500' : 'bg-purple-500';
+                                            const textColor = 'text-white';
+
+                                            return (
+                                                <div
+                                                    key={log.id}
+                                                    className={`absolute top-2 bottom-2 rounded-lg p-2 ${bgColor} ${textColor} flex flex-col justify-center shadow-md`}
+                                                    style={{ left, width }}
+                                                    title={`${log.description} (${log.startTime} - ${log.endTime})`}
+                                                >
+                                                    <p className="text-xs font-bold">{log.startTime} - {log.endTime}</p>
+                                                    <p className="text-xs truncate">{log.description}</p>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            )
+                        })}
+
+                        {!isLoading && (!users || users.length === 0) && (
+                            <div className="flex h-48 items-center justify-center">
+                                <p className="text-muted-foreground">No hay usuarios para mostrar en el cronograma.</p>
+                            </div>
+                        )}
                     </div>
-                )}
+                </div>
+                <ScrollBar orientation="horizontal" />
+                </ScrollArea>
             </CardContent>
         </Card>
     );
@@ -130,25 +239,8 @@ function AdminDashboard() {
                 </div>
             </div>
 
-            <div className="grid gap-8 md:grid-cols-3">
-                <div className="md:col-span-2">
-                    <AdminTimeline selectedDate={date || new Date()} />
-                </div>
-                <div>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Seleccionar Fecha</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <Calendar
-                                mode="single"
-                                selected={date}
-                                onSelect={setDate}
-                                className="p-0"
-                            />
-                        </CardContent>
-                    </Card>
-                </div>
+            <div className="grid gap-8 md:grid-cols-1">
+                 <AdminTimeline selectedDate={date || new Date()} setSelectedDate={(d) => setDate(d)} />
             </div>
         </>
     )
@@ -172,5 +264,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
 
     
