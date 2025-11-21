@@ -110,18 +110,16 @@ service cloud.firestore {
     // ------------------------------------------------------------------------
     
     match /artifacts/{appId} {
-
        /**
        * @description This is a special rule to allow admins to perform a collection group query
        * across all `work_logs` collections. This is necessary for the admin timeline view.
-       * @path /artifacts/{appId}/users/{userId}/work_logs/{workLogId}
-       * @allow (get, list) Admin can read any work log via a collection group query.
+       * @path /artifacts/{appId}/users/{userId}/work_logs/{workLogId} -> captured by {path=**}
+       * @allow (list) Admin can list any work log via a collection group query.
        * @principle Provides a specific, narrow permission for a powerful query type needed by a specific feature.
        */
-      match /{path=**}/work_logs/{workLogId} {
-        allow get: if isAdmin();
-        allow list: if isAdmin();
-      }
+       match /{path=**}/work_logs/{workLogId} {
+          allow list: if isAdmin();
+       }
 
       /**
        * @description Defines rules for the shared data space, including user profiles,
@@ -161,7 +159,7 @@ service cloud.firestore {
           allow get: if isAdmin();
           allow list: if isAdmin();
           allow create: if true;
-          allow update: if isAdmin();
+          update: if isAdmin();
           allow delete: if isAdmin();
         }
 
@@ -197,19 +195,19 @@ service cloud.firestore {
 
         /**
          * @description Secures user-specific work log entries. A user has full control over their own logs.
-         * An admin can read any user's logs for the timeline view.
+         * An admin can read any user's logs for the timeline view, but this is handled by the collectionGroup rule.
          * @path /artifacts/{appId}/users/{userId}/work_logs/{workLogId}
          * @allow (create, list) User 'user123' creating or listing work logs under `/users/user123/work_logs`.
-         * @allow (read, list) Admin user can read and list any user's work logs.
+         * @allow (get) User 'user123' reading their own work log.
          * @deny (get) User 'user456' trying to read a work log under `/users/user123/work_logs`.
-         * @principle Enforces document ownership for all operations, with a read-only exception for admins.
+         * @principle Enforces document ownership for all operations. Admin read access is handled by the group query rule.
          */
         match /work_logs/{workLogId} {
-          allow get: if isOwner(userId) || isAdmin();
-          allow list: if isOwner(userId) || isAdmin();
+          allow get: if isOwner(userId);
+          allow list: if isOwner(userId);
           allow create: if isCreatingOwnSubDoc(userId);
           allow update: if isUpdatingOwnSubDoc(userId);
-          allow delete: if isExistingOwner(userId) || isAdmin();
+          allow delete: if isExistingOwner(userId);
         }
 
         /**
@@ -232,3 +230,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
