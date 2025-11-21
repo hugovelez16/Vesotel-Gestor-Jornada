@@ -103,14 +103,17 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
     const { toast } = useToast();
 
     useEffect(() => {
-        // Reset dependent switches when logType changes
+        setLogType(log.type);
+        setFormData({ ...log });
+    }, [log, open]);
+
+    useEffect(() => {
         if (logType === 'particular') {
             setFormData(prev => ({...prev, hasNight: false, arrivesPrior: false}));
         }
     }, [logType]);
 
     useEffect(() => {
-        // Reset arrivesPrior if hasNight is turned off
         if (!formData.hasNight) {
             setFormData(prev => ({...prev, arrivesPrior: false}));
         }
@@ -132,16 +135,21 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
     };
 
     const handleSubmit = async () => {
-        if (!firestore || !userSettings) {
-            toast({ title: "Error", description: "No se pudieron cargar los ajustes del usuario.", variant: "destructive" });
+        if (!firestore || !userSettings || !log.userId) {
+            toast({ title: "Error", description: "No se pudieron cargar los datos necesarios para actualizar.", variant: "destructive" });
             return;
         };
         setIsLoading(true);
 
-        let updatedLogData: Partial<WorkLog> = { ...formData, type: logType, userId: log.userId };
+        const updatedLogData: Partial<WorkLog> = { 
+            ...formData, 
+            type: logType, 
+            userId: log.userId // Ensure userId is always present
+        };
 
         const { amount, isGross, rateApplied, duration } = calculateEarnings(updatedLogData, userSettings);
-        updatedLogData = {
+        
+        const finalData = {
             ...updatedLogData,
             amount,
             isGrossCalculation: isGross,
@@ -151,13 +159,13 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
 
         try {
             const logDocRef = doc(firestore, `artifacts/${APP_ID}/users/${log.userId}/work_logs`, log.id);
-            await updateDoc(logDocRef, updatedLogData);
+            await updateDoc(logDocRef, finalData);
             toast({ title: "Éxito", description: "Registro de trabajo actualizado correctamente." });
             setOpen(false);
             onLogUpdate();
         } catch (error: any) {
             console.error("Error updating work log:", error);
-            toast({ title: "Error", description: "No se pudo actualizar el registro.", variant: "destructive" });
+            toast({ title: "Error", description: error.message || "No se pudo actualizar el registro.", variant: "destructive" });
         } finally {
             setIsLoading(false);
         }
@@ -361,11 +369,8 @@ function UserWorkLogs({ userId, userSettings }: { userId: string, userSettings: 
 
   const { data: workLogs, isLoading, error: collectionError } = useCollection<WorkLog>(workLogsRef);
 
-  // Function to force re-fetch or re-render
   const [refreshKey, setRefreshKey] = useState(0);
   const handleLogUpdate = () => {
-      // a bit of a hack to force re-render, ideally useCollection would re-fetch automatically
-      // but sometimes it can be stale after a quick update/delete.
       setRefreshKey(prev => prev + 1);
   };
   
