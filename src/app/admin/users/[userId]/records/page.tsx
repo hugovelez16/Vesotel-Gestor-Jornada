@@ -173,7 +173,7 @@ export default function UserRecordsPage({ params }: { params: { userId: string }
   const { userId } = use(params);
   const firestore = useFirestore();
   const userProfileRef = useMemoFirebase(
-    () => (userId && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users/${userId}`) : null,
+    () => (userId && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users/user_${userId}`) : null,
     [firestore, userId]
   );
   const { data: profile, isLoading: isLoadingProfile } = useDoc<UserProfile>(userProfileRef);
