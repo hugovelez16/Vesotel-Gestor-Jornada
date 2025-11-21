@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { AccessRequest, UserProfile } from "@/lib/types";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
+import Link from "next/link";
 
 export default function AdminUsersPage() {
   const firestore = useFirestore();
@@ -166,7 +167,9 @@ export default function AdminUsersPage() {
                                     )}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                    <Button variant="outline" size="sm">Ver Detalles</Button>
+                                    <Button asChild variant="outline" size="sm">
+                                      <Link href={`/admin/users/${user.uid}`}>Ver Detalles</Link>
+                                    </Button>
                                 </TableCell>
                             </TableRow>
                         ),
