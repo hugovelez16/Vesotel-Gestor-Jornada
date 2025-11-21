@@ -4,10 +4,9 @@
 import { useUser } from "@/firebase";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import Link from "next/link";
-import { Loader2, ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { ADMIN_EMAIL } from "@/lib/config";
+import MainNav from "@/components/main-nav";
 
 export default function AdminLayout({
   children,
@@ -19,12 +18,14 @@ export default function AdminLayout({
   const isAdmin = user?.email === ADMIN_EMAIL;
 
   useEffect(() => {
-    if (!isUserLoading && !isAdmin) {
+    if (!isUserLoading && !user) {
+        router.replace("/login");
+    } else if (!isUserLoading && user && !isAdmin) {
       router.replace("/dashboard");
     }
-  }, [isUserLoading, isAdmin, router]);
+  }, [isUserLoading, user, isAdmin, router]);
 
-  if (isUserLoading || !isAdmin) {
+  if (isUserLoading || !user || !isAdmin) {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
             <div className="flex flex-col items-center gap-4">
@@ -36,17 +37,13 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 md:py-12 lg:px-8">
-       <header className="mb-8 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-primary">Panel de Administración</h1>
-          <Button asChild variant="outline">
-            <Link href="/dashboard">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Volver al Dashboard
-            </Link>
-          </Button>
-        </header>
-      <main>{children}</main>
+     <div className="relative flex min-h-screen flex-col bg-background">
+      <MainNav />
+      <main className="container mx-auto flex-grow px-4 py-8 md:py-12 lg:px-8">
+        <div className="pb-20 md:pb-0">
+          {children}
+        </div>
+      </main>
     </div>
   );
 }
