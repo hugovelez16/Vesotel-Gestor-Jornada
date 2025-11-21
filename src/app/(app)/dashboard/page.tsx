@@ -9,7 +9,7 @@ import { PlusCircle, Loader2, Users, BookOpen, ChevronLeft, ChevronRight, Calend
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Link from "next/link";
 import type { UserProfile, WorkLog } from "@/lib/types";
-import { collectionGroup, query, where } from "firebase/firestore";
+import { collection, collectionGroup, query, where } from "firebase/firestore";
 import { addDays, format, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
@@ -63,12 +63,13 @@ function AdminTimeline() {
     const [selectedDate, setSelectedDate] = useState(startOfDay(new Date()));
 
     const usersRef = useMemoFirebase(
-        () => collection(firestore, `artifacts/${APP_ID}/public/data/users`),
+        () => firestore ? collection(firestore, `artifacts/${APP_ID}/public/data/users`) : null,
         [firestore]
     );
     const { data: users, isLoading: isLoadingUsers } = useCollection<UserProfile>(usersRef);
 
     const workLogsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
         return query(
             collectionGroup(firestore, 'work_logs'),
@@ -86,6 +87,7 @@ function AdminTimeline() {
     };
 
     const timeToPosition = (time: string) => {
+        if (!time) return 0;
         const [hours, minutes] = time.split(':').map(Number);
         return ((hours * 60 + minutes) / (24 * 60)) * 100;
     };
