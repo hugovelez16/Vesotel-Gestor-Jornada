@@ -14,16 +14,27 @@ export default function LoginPage() {
   const { user, isUserLoading } = useUser();
   const auth = useFirebaseAuth();
   const router = useRouter();
-  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isProcessingLogin, setIsProcessingLogin] = useState(true);
 
   // Handle the redirect result from Google
   useEffect(() => {
     if (auth) {
-      getRedirectResult(auth).catch((error) => {
-        // Handle Errors here.
-        console.error("Error getting redirect result:", error);
-        setIsSigningIn(false);
-      });
+      getRedirectResult(auth)
+        .then((result) => {
+          if (result) {
+            // User is signed in.
+            // The onAuthStateChanged observer will handle the user object.
+          }
+        })
+        .catch((error) => {
+          // Handle Errors here.
+          console.error("Error getting redirect result:", error);
+        })
+        .finally(() => {
+          setIsProcessingLogin(false);
+        });
+    } else {
+        setIsProcessingLogin(false);
     }
   }, [auth]);
 
@@ -34,10 +45,11 @@ export default function LoginPage() {
   }, [user, isUserLoading, router]);
 
   const signInWithGoogle = async () => {
-    setIsSigningIn(true);
-    const provider = new GoogleAuthProvider();
-    // We use signInWithRedirect instead of signInWithPopup
-    await signInWithRedirect(auth, provider);
+    if(auth) {
+        setIsProcessingLogin(true);
+        const provider = new GoogleAuthProvider();
+        await signInWithRedirect(auth, provider);
+    }
   };
 
 
@@ -50,7 +62,21 @@ export default function LoginPage() {
     </svg>
   );
 
-  const isLoading = isUserLoading || isSigningIn;
+  const isLoading = isUserLoading || isProcessingLogin;
+
+  if (isLoading) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+         <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Iniciando sesión...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Avoid showing login page if user is already logged in and redirecting
+  if (user) return null;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -65,20 +91,10 @@ export default function LoginPage() {
             onClick={signInWithGoogle}
             disabled={isLoading}
           >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Iniciando sesión...
-              </>
-            ) : (
-              <>
-                <GoogleIcon /> Iniciar sesión con Google
-              </>
-            )}
+            <GoogleIcon /> Iniciar sesión con Google
           </Button>
         </CardContent>
       </Card>
     </div>
   );
 }
-
