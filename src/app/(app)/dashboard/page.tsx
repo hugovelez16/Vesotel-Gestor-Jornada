@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { ADMIN_EMAIL, APP_ID } from "@/lib/config";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { PlusCircle, Loader2, Users, BookOpen, ChevronLeft, ChevronRight, Calend
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Link from "next/link";
 import type { UserProfile, WorkLog } from "@/lib/types";
-import { collection, collectionGroup, query, where } from "firebase/firestore";
+import { collection, collectionGroup, query, where, getDocs } from "firebase/firestore";
 import { addDays, format, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
@@ -61,6 +61,8 @@ function UserDashboard() {
 function AdminTimeline() {
     const firestore = useFirestore();
     const [selectedDate, setSelectedDate] = useState(startOfDay(new Date()));
+    const [workLogs, setWorkLogs] = useState<WorkLog[]>([]);
+    const [isLoadingWorkLogs, setIsLoadingWorkLogs] = useState(false);
 
     const usersRef = useMemoFirebase(
         () => firestore ? collection(firestore, `artifacts/${APP_ID}/public/data/users`) : null,
@@ -68,16 +70,37 @@ function AdminTimeline() {
     );
     const { data: users, isLoading: isLoadingUsers } = useCollection<UserProfile>(usersRef);
 
-    const workLogsQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        const dateStr = format(selectedDate, 'yyyy-MM-dd');
-        return query(
-            collectionGroup(firestore, 'work_logs'),
-            where('date', '==', dateStr)
-        );
-    }, [firestore, selectedDate]);
+    useEffect(() => {
+        if (!firestore || !users || users.length === 0) {
+            setWorkLogs([]);
+            return;
+        };
 
-    const { data: workLogs, isLoading: isLoadingWorkLogs } = useCollection<WorkLog>(workLogsQuery);
+        const fetchWorkLogs = async () => {
+            setIsLoadingWorkLogs(true);
+            const dateStr = format(selectedDate, 'yyyy-MM-dd');
+            const allLogs: WorkLog[] = [];
+
+            for (const user of users) {
+                try {
+                    const logsCollectionRef = collection(firestore, `artifacts/${APP_ID}/users/${user.uid}/work_logs`);
+                    const q = query(logsCollectionRef, where('date', '==', dateStr));
+                    const querySnapshot = await getDocs(q);
+                    querySnapshot.forEach((doc) => {
+                        allLogs.push({ id: doc.id, ...doc.data() } as WorkLog);
+                    });
+                } catch (error) {
+                    console.error(`Error fetching work_logs for user ${user.uid}:`, error);
+                    // Silently fail for one user and continue for others
+                }
+            }
+            setWorkLogs(allLogs);
+            setIsLoadingWorkLogs(false);
+        };
+
+        fetchWorkLogs();
+    }, [firestore, users, selectedDate]);
+
 
     const isLoading = isLoadingUsers || isLoadingWorkLogs;
 
@@ -124,7 +147,7 @@ function AdminTimeline() {
                                 <Calendar
                                     mode="single"
                                     selected={selectedDate}
-                                    onSelect={(day) => day && setSelectedDate(day)}
+                                    onSelect={(day) => day && setSelectedDate(startOfDay(day))}
                                     initialFocus
                                 />
                                 </PopoverContent>
