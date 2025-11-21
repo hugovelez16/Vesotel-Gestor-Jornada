@@ -1,8 +1,9 @@
 
+
 "use client";
 
 import { useFirestore, useMemoFirebase, useCollection, useDoc } from "@/firebase";
-import { collection, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, getDocs, getDoc } from "firebase/firestore";
+import { collection, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, getDocs, getDoc, setDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -145,15 +146,15 @@ function UserDetailContent({ userId }: { userId: string}) {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (settings) {
+    if (profile && settings) {
       setFormData({
         ...profile,
         ...settings,
       });
     } else if (profile) {
-      setFormData({
-        ...profile,
-      })
+      setFormData(profile);
+    } else if (settings) {
+      setFormData(settings);
     }
   }, [profile, settings]);
 
@@ -234,19 +235,20 @@ function UserDetailContent({ userId }: { userId: string}) {
     );
   }
 
-  if (!profile && !settings) {
+  if (!profile || !settings) {
     return (
-      <div className="flex h-64 w-full items-center justify-center bg-background">
-        <p className="text-muted-foreground">No se pudo encontrar el perfil del usuario con ID: {userId}</p>
+      <div className="flex h-64 w-full items-center justify-center bg-background p-4 text-center">
+        <p className="text-muted-foreground">No se pudieron encontrar todos los datos para el usuario con ID: {userId}. Asegúrate de que tanto el perfil como la configuración existan en la base de datos.</p>
       </div>
     );
   }
+
 
   return (
     <form onSubmit={handleFormSubmit} className="space-y-8 p-4 bg-slate-50">
       <div className="flex items-center gap-4">
         <Avatar className="h-16 w-16">
-          <AvatarImage src={(profile as any).photoURL ?? ""} alt={formData.firstName} />
+          <AvatarImage src={(profile as any)?.photoURL ?? ""} alt={formData.firstName} />
           <AvatarFallback className="text-xl">{getInitials(`${formData.firstName} ${formData.lastName}`)}</AvatarFallback>
         </Avatar>
         <div>
