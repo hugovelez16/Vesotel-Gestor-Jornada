@@ -104,7 +104,7 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
 
     useEffect(() => {
         setLogType(log.type);
-        setFormData({ ...log });
+        setFormData({ ...log, userId: log.userId });
     }, [log, open]);
 
     useEffect(() => {
@@ -144,7 +144,7 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
         const updatedLogData: Partial<WorkLog> = { 
             ...formData, 
             type: logType, 
-            userId: log.userId // Ensure userId is always present
+            userId: log.userId
         };
 
         const { amount, isGross, rateApplied, duration } = calculateEarnings(updatedLogData, userSettings);
