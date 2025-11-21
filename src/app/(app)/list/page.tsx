@@ -2,7 +2,7 @@
 "use client";
 
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, orderBy } from "firebase/firestore";
+import { collection } from "firebase/firestore";
 import { APP_ID } from "@/lib/config";
 import type { WorkLog } from "@/lib/types";
 import {
@@ -41,20 +41,20 @@ function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkLog | nu
                     </div>
                     {log.type === 'particular' ? (
                         <>
-                            <p><strong>Fecha:</strong> {log.date ? format(parseISO(log.date), 'PPP', { locale: es }) : '-'}</p>
-                            <p><strong>Hora Inicio:</strong> {log.startTime ?? '-'}</p>
-                            <p><strong>Hora Fin:</strong> {log.endTime ?? '-'}</p>
-                            <p><strong>Duración:</strong> {log.duration ?? '-'} horas</p>
+                            <div><strong>Fecha:</strong> {log.date ? format(parseISO(log.date), 'PPP', { locale: es }) : '-'}</div>
+                            <div><strong>Hora Inicio:</strong> {log.startTime ?? '-'}</div>
+                            <div><strong>Hora Fin:</strong> {log.endTime ?? '-'}</div>
+                            <div><strong>Duración:</strong> {log.duration ?? '-'} horas</div>
                         </>
                     ) : (
                         <>
-                            <p><strong>Fecha Inicio:</strong> {log.startDate ? format(parseISO(log.startDate), 'PPP', { locale: es }) : '-'}</p>
-                            <p><strong>Fecha Fin:</strong> {log.endDate ? format(parseISO(log.endDate), 'PPP', { locale: es }) : '-'}</p>
+                            <div><strong>Fecha Inicio:</strong> {log.startDate ? format(parseISO(log.startDate), 'PPP', { locale: es }) : '-'}</div>
+                            <div><strong>Fecha Fin:</strong> {log.endDate ? format(parseISO(log.endDate), 'PPP', { locale: es }) : '-'}</div>
                         </>
                     )}
-                    <p><strong>Descripción:</strong> {log.description}</p>
-                    <p className="font-bold text-lg text-green-600">Importe: €{log.amount?.toFixed(2) ?? '0.00'}</p>
-                    <p><strong>Tarifa Aplicada:</strong> €{log.rateApplied?.toFixed(2)}/h</p>
+                    <div><strong>Descripción:</strong> {log.description}</div>
+                    <div className="font-bold text-lg text-green-600">Importe: €{log.amount?.toFixed(2) ?? '0.00'}</div>
+                    <div><strong>Tarifa Aplicada:</strong> €{log.rateApplied?.toFixed(2)}/h</div>
                     <div className="space-y-2 pt-2">
                         <div className="flex items-center gap-2">
                             <Switch checked={log.isGrossCalculation} disabled id="isGross" />
