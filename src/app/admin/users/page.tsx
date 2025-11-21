@@ -147,14 +147,16 @@ function UserDetailContent({ userId }: { userId: string}) {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    let data: Partial<UserProfile & UserSettings> = {};
-    if (profile) {
-      data = {...data, ...profile};
-    }
-    if (settings) {
-      data = {...data, ...settings};
-    }
-    setFormData(data);
+      let data: Partial<UserProfile & UserSettings> = {};
+      // This ensures we only set form data once both profile and settings are loaded
+      if (profile && settings) {
+          data = { ...profile, ...settings };
+          setFormData(data);
+      } else if(profile) {
+        setFormData(prev => ({...prev, ...profile}));
+      } else if (settings) {
+        setFormData(prev => ({...prev, ...settings}));
+      }
   }, [profile, settings]);
 
 
@@ -546,6 +548,12 @@ function CreateWorkLogDialog({ users, allUserSettings }: { users: UserProfile[],
                             <Switch id="hasCoordination" name="hasCoordination" checked={formData.hasCoordination} onCheckedChange={(c) => handleSwitchChange('hasCoordination', c)}/>
                             <Label htmlFor="hasCoordination">Plus Coordinación</Label>
                         </div>
+                        {logType === 'particular' && (
+                           <div className="flex items-center space-x-2">
+                                <Switch id="hasNight" name="hasNight" checked={formData.hasNight} onCheckedChange={(c) => handleSwitchChange('hasNight', c)}/>
+                                <Label htmlFor="hasNight">Plus Nocturnidad</Label>
+                            </div>
+                        )}
                         {logType === 'tutorial' && (
                            <div className="flex items-center space-x-2">
                                 <Switch id="arrivesPrior" name="arrivesPrior" checked={formData.arrivesPrior} onCheckedChange={(c) => handleSwitchChange('arrivesPrior', c)}/>
@@ -817,5 +825,3 @@ export default function AdminUsersPage() {
     </div>
   );
 }
-
-    

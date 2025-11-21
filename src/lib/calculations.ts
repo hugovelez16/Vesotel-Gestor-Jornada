@@ -8,11 +8,12 @@ function calculateParticular(log: Partial<WorkLog>, settings: UserSettings) {
   const duration = log.duration ?? 0;
   const rate = settings.hourlyRate ?? 0;
   const coordination = log.hasCoordination ? (settings.coordinationRate ?? 10) : 0;
+  const night = log.hasNight ? (settings.nightRate ?? 30) : 0;
   
   const base = duration * rate;
-  // Coordination plus is now a flat rate per event, not per hour
-  const extra = log.hasCoordination ? coordination : 0; 
-  const total = base + extra;
+  // Coordination and Night plus are flat rates per event, not per hour
+  const extras = (log.hasCoordination ? coordination : 0) + (log.hasNight ? night : 0);
+  const total = base + extras;
 
   return { total, rateApplied: rate, duration };
 }

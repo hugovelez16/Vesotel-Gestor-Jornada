@@ -76,6 +76,12 @@ function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkLog | nu
                             <Switch checked={log.hasCoordination} disabled id="hasCoordination" />
                             <Label htmlFor="hasCoordination">Plus Coordinación</Label>
                         </div>
+                         {log.type === 'particular' && (
+                            <div className="flex items-center gap-2">
+                                <Switch checked={log.hasNight} disabled id="hasNight" />
+                                <Label htmlFor="hasNight">Plus Nocturnidad</Label>
+                            </div>
+                        )}
                         {log.type === 'tutorial' && (
                             <div className="flex items-center gap-2">
                                 <Switch checked={log.arrivesPrior} disabled id="arrivesPrior" />
@@ -252,6 +258,12 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
                                 <Switch id="hasCoordination" name="hasCoordination" checked={formData.hasCoordination} onCheckedChange={(c) => handleSwitchChange('hasCoordination', c)}/>
                                 <Label htmlFor="hasCoordination">Plus Coordinación</Label>
                             </div>
+                             {logType === 'particular' && (
+                                <div className="flex items-center space-x-2">
+                                    <Switch id="hasNight" name="hasNight" checked={formData.hasNight} onCheckedChange={(c) => handleSwitchChange('hasNight', c)}/>
+                                    <Label htmlFor="hasNight">Plus Nocturnidad</Label>
+                                </div>
+                            )}
                             {logType === 'tutorial' && (
                                 <div className="flex items-center space-x-2">
                                     <Switch id="arrivesPrior" name="arrivesPrior" checked={formData.arrivesPrior} onCheckedChange={(c) => handleSwitchChange('arrivesPrior', c)}/>
