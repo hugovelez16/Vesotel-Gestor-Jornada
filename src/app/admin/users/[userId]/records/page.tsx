@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Loader2, ArrowLeft, Edit, Trash2 } from "lucide-react";
-import React, { use, useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
@@ -75,12 +75,13 @@ function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkLog | nu
                             <Switch checked={log.hasCoordination} disabled id="hasCoordination" />
                             <Label htmlFor="hasCoordination">Coordinación</Label>
                         </div>
-                        {log.type === 'tutorial' ? (
+                        {log.type === 'tutorial' && (
                              <div className="flex items-center gap-2">
                                 <Switch checked={log.hasNight} disabled id="hasNight" />
                                 <Label htmlFor="hasNight">Nocturnidad</Label>
                             </div>
-                        ) : (
+                        )}
+                        {log.type === 'particular' && (
                              <div className="flex items-center gap-2">
                                 <Switch checked={log.hasNight} disabled id="hasNight" />
                                 <Label htmlFor="hasNight">Nocturnidad</Label>
@@ -116,7 +117,7 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
 
     useEffect(() => {
         if (logType === 'particular') {
-            setFormData(prev => ({...prev, hasNight: false, arrivesPrior: false}));
+            setFormData(prev => ({...prev, arrivesPrior: false}));
         }
     }, [logType]);
 
@@ -157,7 +158,7 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
 
         const updatedLogData: Partial<WorkLog> = { 
             ...formData, 
-            type: logType, 
+            type: logType,
             userId: log.userId
         };
 
@@ -293,7 +294,7 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
                                 <Switch id="hasCoordination" name="hasCoordination" checked={formData.hasCoordination} onCheckedChange={(c) => handleSwitchChange('hasCoordination', c)}/>
                                 <Label htmlFor="hasCoordination">Coordinación</Label>
                             </div>
-                             {logType === 'tutorial' ? (
+                             {logType === 'tutorial' && (
                                 <>
                                     <div className="flex items-center space-x-2">
                                         <Switch id="hasNight" name="hasNight" checked={formData.hasNight} onCheckedChange={(c) => handleSwitchChange('hasNight', c)}/>
@@ -306,7 +307,8 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
                                         </div>
                                     )}
                                 </>
-                            ) : (
+                            )}
+                             {logType === 'particular' && (
                                  <div className="flex items-center space-x-2">
                                     <Switch id="hasNight" name="hasNight" checked={formData.hasNight} onCheckedChange={(c) => handleSwitchChange('hasNight', c)}/>
                                     <Label htmlFor="hasNight">Nocturnidad</Label>
@@ -476,7 +478,7 @@ function UserWorkLogs({ userId, userSettings }: { userId: string, userSettings: 
 
 
 export default function UserRecordsPage({ params }: { params: { userId: string } }) {
-  const { userId } = use(params);
+  const { userId } = params;
   const firestore = useFirestore();
 
   const userProfileRef = useMemoFirebase(
