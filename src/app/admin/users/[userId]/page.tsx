@@ -25,7 +25,7 @@ import { format, parseISO } from "date-fns";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect, FormEvent } from "react";
+import { useState, useEffect, FormEvent, useMemo } from "react";
 
 function UserWorkLogs({ userId }: { userId: string }) {
   const firestore = useFirestore();
@@ -35,14 +35,23 @@ function UserWorkLogs({ userId }: { userId: string }) {
     () =>
       userId && firestore
         ? query(
-            collection(firestore, `artifacts/${APP_ID}/users/${userId}/work_logs`),
-            orderBy("createdAt", "desc")
+            collection(firestore, `artifacts/${APP_ID}/users/${userId}/work_logs`)
           )
         : null,
     [firestore, userId]
   );
 
   const { data: workLogs, isLoading } = useCollection<WorkLog>(workLogsRef);
+  
+  const sortedWorkLogs = useMemo(() => {
+    if (!workLogs) return [];
+    return [...workLogs].sort((a, b) => {
+      const dateA = a.type === 'tutorial' ? a.startDate : a.date;
+      const dateB = b.type === 'tutorial' ? b.startDate : b.date;
+      if (!dateA || !dateB) return 0;
+      return parseISO(dateB).getTime() - parseISO(dateA).getTime();
+    });
+  }, [workLogs]);
 
   if (isLoading) {
     return (
@@ -67,8 +76,8 @@ function UserWorkLogs({ userId }: { userId: string }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {workLogs && workLogs.length > 0 ? (
-              workLogs.map((log) => (
+            {sortedWorkLogs && sortedWorkLogs.length > 0 ? (
+              sortedWorkLogs.map((log) => (
                 <TableRow key={log.id} onClick={() => setSelectedLog(log)} className="cursor-pointer">
                   <TableCell>
                     <Badge variant={log.type === 'particular' ? 'secondary' : 'default'}>{log.type}</Badge>
@@ -109,15 +118,15 @@ function UserWorkLogs({ userId }: { userId: string }) {
                 </div>
                 {selectedLog.type === 'particular' ? (
                     <>
-                        <p><strong>Fecha:</strong> {selectedLog.date ? format(parseISO(selectedLog.date), 'PPP') : '-'}</p>
+                        <p><strong>Fecha:</strong> {selectedLog.date ? format(parseISO(selectedLog.date), 'PPP', { locale: es }) : '-'}</p>
                         <p><strong>Hora Inicio:</strong> {selectedLog.startTime ?? '-'}</p>
                         <p><strong>Hora Fin:</strong> {selectedLog.endTime ?? '-'}</p>
                         <p><strong>Duración:</strong> {selectedLog.duration ?? '-'} horas</p>
                     </>
                 ) : (
                     <>
-                        <p><strong>Fecha Inicio:</strong> {selectedLog.startDate ? format(parseISO(selectedLog.startDate), 'PPP') : '-'}</p>
-                        <p><strong>Fecha Fin:</strong> {selectedLog.endDate ? format(parseISO(selectedLog.endDate), 'PPP') : '-'}</p>
+                        <p><strong>Fecha Inicio:</strong> {selectedLog.startDate ? format(parseISO(selectedLog.startDate), 'PPP', { locale: es }) : '-'}</p>
+                        <p><strong>Fecha Fin:</strong> {selectedLog.endDate ? format(parseISO(selectedLog.endDate), 'PPP', { locale: es }) : '-'}</p>
                     </>
                 )}
                 <p><strong>Descripción:</strong> {selectedLog.description}</p>
