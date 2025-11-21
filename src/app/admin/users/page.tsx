@@ -2,7 +2,7 @@
 "use client";
 
 import { useFirestore, useMemoFirebase, useCollection, useDoc } from "@/firebase";
-import { collection, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, getDocs, getDoc, setDoc } from "firebase/firestore";
+import { collection, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, getDocs, getDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -130,7 +130,7 @@ function UserDetailContent({ userId }: { userId: string}) {
   const { toast } = useToast();
 
   const userProfileRef = useMemoFirebase(
-    () => (userId && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users/user_`, `${userId}`) : null,
+    () => (userId && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, userId) : null,
     [firestore, userId]
   );
   const userSettingsRef = useMemoFirebase(
@@ -145,11 +145,15 @@ function UserDetailContent({ userId }: { userId: string}) {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (profile || settings) {
+    if (settings) {
       setFormData({
         ...profile,
         ...settings,
       });
+    } else if (profile) {
+      setFormData({
+        ...profile,
+      })
     }
   }, [profile, settings]);
 
@@ -177,6 +181,9 @@ function UserDetailContent({ userId }: { userId: string}) {
     const profileData: Partial<UserProfile> = {
       firstName: formData.firstName,
       lastName: formData.lastName,
+      email: profile?.email,
+      uid: userId,
+      type: 'user_registry'
     };
 
     const settingsData: Partial<UserSettings> = {
@@ -227,7 +234,7 @@ function UserDetailContent({ userId }: { userId: string}) {
     );
   }
 
-  if (!profile) {
+  if (!profile && !settings) {
     return (
       <div className="flex h-64 w-full items-center justify-center bg-background">
         <p className="text-muted-foreground">No se pudo encontrar el perfil del usuario con ID: {userId}</p>
@@ -244,7 +251,7 @@ function UserDetailContent({ userId }: { userId: string}) {
         </Avatar>
         <div>
           <h2 className="text-2xl font-bold tracking-tight">{formData.firstName} {formData.lastName}</h2>
-          <p className="text-muted-foreground">{profile.email}</p>
+          <p className="text-muted-foreground">{profile?.email}</p>
         </div>
       </div>
       
@@ -796,5 +803,3 @@ export default function AdminUsersPage() {
     </div>
   );
 }
-
-    
