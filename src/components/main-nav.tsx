@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -14,6 +13,7 @@ import {
   Clock,
   LogOut,
   Settings,
+  Users,
 } from "lucide-react";
 import { VesotelLogo } from "./icons";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -36,7 +36,7 @@ const navItems = [
 ];
 
 const adminNavItems = [
-  { href: "/admin/users", label: "Admin", icon: Shield },
+  { href: "/admin/users", label: "Usuarios", icon: Users },
   { href: "/admin/timeline", label: "Timeline", icon: Clock },
 ];
 
@@ -148,5 +148,3 @@ export default function MainNav() {
     </>
   );
 }
-
-    

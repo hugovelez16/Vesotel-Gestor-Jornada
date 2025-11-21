@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { APP_ID, ADMIN_EMAIL } from "@/lib/config";
 import { useToast } from "@/hooks/use-toast";
 import type { AccessRequest, UserProfile, WorkLog, UserSettings } from "@/lib/types";
-import { Loader2, CheckCircle, XCircle, PlusCircle } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, PlusCircle, Users } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
 import React, { useState } from 'react';
@@ -292,11 +292,8 @@ export default function AdminUsersPage() {
   const { data: requests, isLoading: isLoadingRequests } = useCollection<AccessRequest>(requestsRef);
   const { data: users, isLoading: isLoadingUsers } = useCollection<UserProfile>(usersRef);
   
-  // This is a placeholder for user settings. In a real app, you would fetch these,
-  // perhaps in a more optimized way if needed. For now, we'll assume they can be fetched
-  // or are passed down. This hook is simplified and will not run a query.
+  // This hook is a placeholder and doesn't run a query. It's needed for the dialog.
   const { data: userSettings, isLoading: isLoadingSettings } = useCollection<UserSettings>(null);
-
 
   const pendingRequests = requests?.filter(req => req.status === 'pending');
 
@@ -365,56 +362,13 @@ export default function AdminUsersPage() {
         )}
       </div>
 
-      <Tabs defaultValue="requests">
+      <Tabs defaultValue="users">
         <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="users">Usuarios Activos</TabsTrigger>
           <TabsTrigger value="requests">
             Solicitudes Pendientes {pendingRequests && pendingRequests.length > 0 && <Badge className="ml-2">{pendingRequests.length}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="users">Usuarios Activos</TabsTrigger>
         </TabsList>
-        <TabsContent value="requests">
-          <Card>
-            <CardHeader>
-              <CardTitle>Solicitudes de Acceso</CardTitle>
-              <CardDescription>Aprueba o rechaza las nuevas solicitudes.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nombre</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                   {renderTableBody(
-                       isLoadingRequests,
-                       pendingRequests,
-                       (req) => (
-                           <TableRow key={req.id}>
-                               <TableCell>{req.firstName} {req.lastName}</TableCell>
-                               <TableCell>{req.email}</TableCell>
-                               <TableCell>{req.createdAt ? format(req.createdAt.toDate(), 'dd/MM/yyyy') : '-'}</TableCell>
-                               <TableCell className="text-right space-x-2">
-                                   <Button variant="ghost" size="icon" onClick={() => handleRequest(req, 'approved')} title="Aprobar">
-                                       <CheckCircle className="h-5 w-5 text-green-500" />
-                                   </Button>
-                                   <Button variant="ghost" size="icon" onClick={() => handleRequest(req, 'rejected')} title="Rechazar">
-                                       <XCircle className="h-5 w-5 text-red-500" />
-                                   </Button>
-                               </TableCell>
-                           </TableRow>
-                       ),
-                       "No hay solicitudes pendientes.",
-                       4
-                   )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
         <TabsContent value="users">
           <Card>
             <CardHeader>
@@ -461,9 +415,50 @@ export default function AdminUsersPage() {
             </CardContent>
           </Card>
         </TabsContent>
+        <TabsContent value="requests">
+          <Card>
+            <CardHeader>
+              <CardTitle>Solicitudes de Acceso</CardTitle>
+              <CardDescription>Aprueba o rechaza las nuevas solicitudes.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                   {renderTableBody(
+                       isLoadingRequests,
+                       pendingRequests,
+                       (req) => (
+                           <TableRow key={req.id}>
+                               <TableCell>{req.firstName} {req.lastName}</TableCell>
+                               <TableCell>{req.email}</TableCell>
+                               <TableCell>{req.createdAt ? format(req.createdAt.toDate(), 'dd/MM/yyyy') : '-'}</TableCell>
+                               <TableCell className="text-right space-x-2">
+                                   <Button variant="ghost" size="icon" onClick={() => handleRequest(req, 'approved')} title="Aprobar">
+                                       <CheckCircle className="h-5 w-5 text-green-500" />
+                                   </Button>
+                                   <Button variant="ghost" size="icon" onClick={() => handleRequest(req, 'rejected')} title="Rechazar">
+                                       <XCircle className="h-5 w-5 text-red-500" />
+                                   </Button>
+                               </TableCell>
+                           </TableRow>
+                       ),
+                       "No hay solicitudes pendientes.",
+                       4
+                   )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );
 }
-
-    
