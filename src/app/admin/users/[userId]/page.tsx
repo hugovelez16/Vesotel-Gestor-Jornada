@@ -19,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from "date-fns";
 import { Switch } from "@/components/ui/switch";
@@ -28,6 +29,7 @@ import { useState, useEffect, FormEvent } from "react";
 
 function UserWorkLogs({ userId }: { userId: string }) {
   const firestore = useFirestore();
+  const [selectedLog, setSelectedLog] = useState<WorkLog | null>(null);
 
   const workLogsRef = useMemoFirebase(
     () =>
@@ -52,7 +54,8 @@ function UserWorkLogs({ userId }: { userId: string }) {
   }
 
   return (
-    <div className="rounded-lg border">
+    <>
+      <div className="rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -66,7 +69,7 @@ function UserWorkLogs({ userId }: { userId: string }) {
           <TableBody>
             {workLogs && workLogs.length > 0 ? (
               workLogs.map((log) => (
-                <TableRow key={log.id}>
+                <TableRow key={log.id} onClick={() => setSelectedLog(log)} className="cursor-pointer">
                   <TableCell>
                     <Badge variant={log.type === 'particular' ? 'secondary' : 'default'}>{log.type}</Badge>
                   </TableCell>
@@ -90,6 +93,55 @@ function UserWorkLogs({ userId }: { userId: string }) {
           </TableBody>
         </Table>
       </div>
+
+       <Dialog open={!!selectedLog} onOpenChange={(isOpen) => !isOpen && setSelectedLog(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Detalles del Registro</DialogTitle>
+            <DialogDescription>
+              Información completa del registro de jornada.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedLog && (
+            <div className="space-y-4 text-sm">
+                <p><strong>Tipo:</strong> <Badge variant={selectedLog.type === 'particular' ? 'secondary' : 'default'}>{selectedLog.type}</Badge></p>
+                {selectedLog.type === 'particular' ? (
+                    <>
+                        <p><strong>Fecha:</strong> {selectedLog.date ? format(parseISO(selectedLog.date), 'PPP') : '-'}</p>
+                        <p><strong>Hora Inicio:</strong> {selectedLog.startTime ?? '-'}</p>
+                        <p><strong>Hora Fin:</strong> {selectedLog.endTime ?? '-'}</p>
+                        <p><strong>Duración:</strong> {selectedLog.duration ?? '-'} horas</p>
+                    </>
+                ) : (
+                    <>
+                        <p><strong>Fecha Inicio:</strong> {selectedLog.startDate ? format(parseISO(selectedLog.startDate), 'PPP') : '-'}</p>
+                        <p><strong>Fecha Fin:</strong> {selectedLog.endDate ? format(parseISO(selectedLog.endDate), 'PPP') : '-'}</p>
+                    </>
+                )}
+                <p><strong>Descripción:</strong> {selectedLog.description}</p>
+                <p><strong>Importe:</strong> €{selectedLog.amount?.toFixed(2) ?? '0.00'}</p>
+                <p><strong>Tarifa Aplicada:</strong> €{selectedLog.rateApplied?.toFixed(2)}/h</p>
+                <div className="space-y-2 pt-2">
+                    <div className="flex items-center gap-2">
+                        <Switch checked={selectedLog.isGrossCalculation} disabled id="isGross" />
+                        <Label htmlFor="isGross">Cálculo en Bruto (IRPF)</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                         <Switch checked={selectedLog.hasCoordination} disabled id="hasCoordination" />
+                         <Label htmlFor="hasCoordination">Plus Coordinación</Label>
+                    </div>
+                     {selectedLog.type === 'tutorial' && (
+                        <div className="flex items-center gap-2">
+                            <Switch checked={selectedLog.arrivesPrior} disabled id="arrivesPrior" />
+                            <Label htmlFor="arrivesPrior">Llegada Día Anterior</Label>
+                        </div>
+                    )}
+                </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -285,4 +337,3 @@ export default function UserDetailPage() {
   );
 }
 
-    
