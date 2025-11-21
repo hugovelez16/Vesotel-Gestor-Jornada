@@ -68,7 +68,7 @@ function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkLog | nu
                     <div className="font-bold text-lg text-green-600">Importe: €{log.amount?.toFixed(2) ?? '0.00'}</div>
                     <div><strong>Tarifa Aplicada:</strong> €{log.rateApplied?.toFixed(2)}/h</div>
                      <div className="pt-2">
-                        <strong>Cálculo:</strong> {log.isGrossCalculation ? 'Bruto' : 'Neto'}
+                        <strong>Cálculo de importe:</strong> {log.isGrossCalculation ? 'Precios en bruto' : 'Precios en neto'}
                     </div>
                     <div className="space-y-2 pt-2">
                          <div className="flex items-center gap-2">
@@ -84,7 +84,7 @@ function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkLog | nu
                         {log.type === 'tutorial' && log.hasNight && (
                             <div className="flex items-center gap-2">
                                 <Switch checked={log.arrivesPrior} disabled id="arrivesPrior" />
-                                <Label htmlFor="arrivesPrior">Llegada Día Anterior</Label>
+                                <Label htmlFor="arrivesPrior">Llegada día anterior</Label>
                             </div>
                         )}
                     </div>
@@ -266,27 +266,24 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
 
                     <div className="grid grid-cols-4 items-start gap-4">
                         <Label className="text-right pt-2">Opciones</Label>
-                        <div className="col-span-3 space-y-2">
+                         <div className="col-span-3 space-y-2">
                             <div className="flex items-center space-x-2">
                                 <Switch id="hasCoordination" name="hasCoordination" checked={formData.hasCoordination} onCheckedChange={(c) => handleSwitchChange('hasCoordination', c)}/>
                                 <Label htmlFor="hasCoordination">Coordinación</Label>
                             </div>
-                            {logType === 'tutorial' ? (
-                                <div className="flex items-center space-x-2">
-                                    <Switch id="hasNight" name="hasNight" checked={formData.hasNight} onCheckedChange={(c) => handleSwitchChange('hasNight', c)}/>
-                                    <Label htmlFor="hasNight">Nocturnidad</Label>
-                                </div>
-                             ) : (
-                                <div className="flex items-center space-x-2">
-                                    <Switch id="hasNight" name="hasNight" checked={formData.hasNight} onCheckedChange={(c) => handleSwitchChange('hasNight', c)}/>
-                                    <Label htmlFor="hasNight">Nocturnidad</Label>
-                                </div>
-                            )}
-                            {logType === 'tutorial' && formData.hasNight && (
-                                <div className="flex items-center space-x-2 pl-6">
-                                    <Switch id="arrivesPrior" name="arrivesPrior" checked={formData.arrivesPrior} onCheckedChange={(c) => handleSwitchChange('arrivesPrior', c)}/>
-                                    <Label htmlFor="arrivesPrior">Llegada Día Anterior</Label>
-                                </div>
+                             {logType === 'tutorial' && (
+                                <>
+                                    <div className="flex items-center space-x-2">
+                                        <Switch id="hasNight" name="hasNight" checked={formData.hasNight} onCheckedChange={(c) => handleSwitchChange('hasNight', c)}/>
+                                        <Label htmlFor="hasNight">Nocturnidad</Label>
+                                    </div>
+                                    {formData.hasNight && (
+                                        <div className="flex items-center space-x-2 pl-6">
+                                            <Switch id="arrivesPrior" name="arrivesPrior" checked={formData.arrivesPrior} onCheckedChange={(c) => handleSwitchChange('arrivesPrior', c)}/>
+                                            <Label htmlFor="arrivesPrior">Llegada día anterior</Label>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     </div>
