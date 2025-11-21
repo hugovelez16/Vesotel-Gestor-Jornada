@@ -122,41 +122,61 @@ function AdminTimeline() {
         return name.split(' ').map(n => n[0]).join('').toUpperCase();
     };
 
+    const START_HOUR = 8;
+    const END_HOUR = 19;
+    const totalHours = END_HOUR - START_HOUR + 1;
+    const hours = Array.from({ length: totalHours }, (_, i) => i + START_HOUR);
+
     const timeToPosition = (time: string) => {
-        if (!time) return 0;
-        const [hours, minutes] = time.split(':').map(Number);
-        return ((hours * 60 + minutes) / (24 * 60)) * 100;
+        if (!time) return { left: 0, width: 0 };
+        const [h, m] = time.split(':').map(Number);
+        const minutes = (h * 60) + m;
+        const startMinutes = START_HOUR * 60;
+        const endMinutes = END_HOUR * 60;
+
+        if (minutes < startMinutes || minutes > endMinutes) return { left: 0, width: 0 };
+
+        const totalMinutes = (END_HOUR - START_HOUR) * 60;
+        const position = ((minutes - startMinutes) / totalMinutes) * 100;
+        return position;
     };
     
-    const hours = Array.from({ length: 24 }, (_, i) => i);
-
     const renderLog = (log: WorkLog) => {
         const isTutorial = log.type === 'tutorial';
         let left = 0;
         let width = 0;
-        let startTime = log.startTime;
-        let endTime = log.endTime;
-        const selectedDayStart = startOfDay(selectedDate);
+
+        const selectedDayStr = format(startOfDay(selectedDate), 'yyyy-MM-dd');
 
         if (isTutorial) {
-             const logStart = startOfDay(new Date(log.startDate!));
-             const logEnd = startOfDay(new Date(log.endDate!));
+             const logStartDay = log.startDate ? format(startOfDay(new Date(log.startDate)), 'yyyy-MM-dd') : '';
+             const logEndDay = log.endDate ? format(startOfDay(new Date(log.endDate)), 'yyyy-MM-dd') : '';
+
+             const startsToday = logStartDay === selectedDayStr;
+             const endsToday = logEndDay === selectedDayStr;
+             const isWithin = selectedDayStr > logStartDay && selectedDayStr < logEndDay;
              
-             const isStartDay = format(selectedDayStart, 'yyyy-MM-dd') === format(logStart, 'yyyy-MM-dd');
-             const isEndDay = format(selectedDayStart, 'yyyy-MM-dd') === format(logEnd, 'yyyy-MM-dd');
-
-            left = isStartDay ? timeToPosition(log.startTime!) : 0;
-            width = isEndDay ? timeToPosition(log.endTime!) - left : 100 - left;
-            if (width < 0) width = 100 - left; 
-
-            startTime = isStartDay ? log.startTime : "00:00";
-            endTime = isEndDay ? log.endTime : "23:59";
-
+             if(startsToday) {
+                const startPos = timeToPosition(log.startTime!);
+                const endPos = endsToday ? timeToPosition(log.endTime!) : 100;
+                left = startPos;
+                width = endPos - startPos;
+             } else if (endsToday) {
+                const endPos = timeToPosition(log.endTime!);
+                left = 0;
+                width = endPos;
+             } else if(isWithin) {
+                left = 0;
+                width = 100;
+             }
         } else {
-            left = timeToPosition(log.startTime!);
-            const right = timeToPosition(log.endTime!);
-            width = right - left;
+            const startPos = timeToPosition(log.startTime!);
+            const endPos = timeToPosition(log.endTime!);
+            left = startPos;
+            width = endPos - startPos;
         }
+
+        if (width <= 0) return null;
 
         return (
             <div
@@ -166,10 +186,10 @@ function AdminTimeline() {
                     isTutorial ? "bg-green-500/80" : "bg-blue-500/80"
                 )}
                 style={{ left: `${left}%`, width: `${width}%` }}
-                title={`${log.description} (${startTime} - ${endTime})`}
+                title={`${log.description} (${log.startTime} - ${log.endTime})`}
             >
                 <p className="truncate text-xs font-semibold">{log.description}</p>
-                <p className="truncate text-xs">{startTime} - {endTime}</p>
+                <p className="truncate text-xs">{log.startTime} - {log.endTime}</p>
             </div>
         )
     }
@@ -228,23 +248,22 @@ function AdminTimeline() {
                         </div>
                     )}
                     {!isLoading && (
-                         <div className="grid" style={{ gridTemplateColumns: '200px 1fr' }}>
-                            {/* Header Ghost Cell */}
-                            <div className="sticky left-0 z-10 h-10 border-b bg-card"></div>
-                            {/* Header Hours */}
-                            <div className="grid grid-cols-24 border-b">
+                        <div className="grid grid-cols-[200px_1fr] border-l border-t">
+                            {/* Header Row */}
+                            <div className="sticky left-0 z-10 border-b border-r bg-card"></div>
+                            <div className="grid" style={{ gridTemplateColumns: `repeat(${totalHours}, 1fr)` }}>
                                 {hours.map(hour => (
-                                    <div key={hour} className="border-r text-center text-xs text-muted-foreground h-10 flex items-center justify-center">
+                                    <div key={hour} className="border-b border-r p-2 text-center text-xs text-muted-foreground h-10 flex items-center justify-center">
                                         {String(hour).padStart(2, '0')}:00
                                     </div>
                                 ))}
                             </div>
-
+                            
                             {/* User Rows */}
                             {users?.map(user => (
                                 <React.Fragment key={user.uid}>
                                     {/* User Info Cell */}
-                                    <div className="sticky left-0 z-10 flex h-20 items-center gap-3 border-b bg-card p-2">
+                                    <div className="sticky left-0 z-10 flex h-20 items-center gap-3 border-b border-r bg-card p-2">
                                         <Avatar className="h-10 w-10">
                                              <AvatarImage src={(user as any).photoURL ?? ""} alt={user.firstName} />
                                              <AvatarFallback className="text-lg">{getInitials(`${user.firstName} ${user.lastName}`)}</AvatarFallback>
@@ -256,7 +275,7 @@ function AdminTimeline() {
                                     </div>
                                     {/* User Timeline Cell */}
                                     <div className="relative border-b">
-                                        <div className="grid h-full grid-cols-24">
+                                        <div className="grid h-full" style={{ gridTemplateColumns: `repeat(${totalHours}, 1fr)` }}>
                                             {hours.map(hour => <div key={hour} className="h-full border-r"></div>)}
                                         </div>
                                         {workLogs?.filter(log => log.userId === user.uid).map(log => renderLog(log))}
@@ -311,5 +330,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
