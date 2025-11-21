@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Loader2, ArrowLeft, Edit, Trash2 } from "lucide-react";
-import React, { use, useState } from "react";
+import React, { use, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,60 @@ import { useToast } from "@/hooks/use-toast";
 import { calculateEarnings } from "@/lib/calculations";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
+
+function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkLog | null, isOpen: boolean, onOpenChange: (open: boolean) => void }) {
+    if (!log) return null;
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Detalles del Registro</DialogTitle>
+                    <DialogDescription>
+                        Información completa del registro de jornada.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 text-sm">
+                    <div className="flex items-center gap-2">
+                        <strong>Tipo:</strong> <Badge variant={log.type === 'particular' ? 'secondary' : 'default'}>{log.type}</Badge>
+                    </div>
+                    {log.type === 'particular' ? (
+                        <>
+                            <div><strong>Fecha:</strong> {log.date ? format(parseISO(log.date), 'PPP', { locale: es }) : '-'}</div>
+                            <div><strong>Hora Inicio:</strong> {log.startTime ?? '-'}</div>
+                            <div><strong>Hora Fin:</strong> {log.endTime ?? '-'}</div>
+                            <div><strong>Duración:</strong> {log.duration ?? '-'} horas</div>
+                        </>
+                    ) : (
+                        <>
+                            <div><strong>Fecha Inicio:</strong> {log.startDate ? format(parseISO(log.startDate), 'PPP', { locale: es }) : '-'}</div>
+                            <div><strong>Fecha Fin:</strong> {log.endDate ? format(parseISO(log.endDate), 'PPP', { locale: es }) : '-'}</div>
+                        </>
+                    )}
+                    <div><strong>Descripción:</strong> {log.description}</div>
+                    <div className="font-bold text-lg text-green-600">Importe: €{log.amount?.toFixed(2) ?? '0.00'}</div>
+                    <div><strong>Tarifa Aplicada:</strong> €{log.rateApplied?.toFixed(2)}/h</div>
+                    <div className="space-y-2 pt-2">
+                        <div className="flex items-center gap-2">
+                            <Switch checked={log.isGrossCalculation} disabled id="isGross" />
+                            <Label htmlFor="isGross">Cálculo en Bruto (IRPF)</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Switch checked={log.hasCoordination} disabled id="hasCoordination" />
+                            <Label htmlFor="hasCoordination">Plus Coordinación</Label>
+                        </div>
+                        {log.type === 'tutorial' && (
+                            <div className="flex items-center gap-2">
+                                <Switch checked={log.arrivesPrior} disabled id="arrivesPrior" />
+                                <Label htmlFor="arrivesPrior">Llegada Día Anterior</Label>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, userSettings: UserSettings | null, onLogUpdate: () => void }) {
     const [open, setOpen] = useState(false);
@@ -271,6 +325,7 @@ function DeleteWorkLogAlert({ log, onLogUpdate }: { log: WorkLog, onLogUpdate: (
 
 function UserWorkLogs({ userId, userSettings }: { userId: string, userSettings: UserSettings | null }) {
   const firestore = useFirestore();
+  const [selectedLog, setSelectedLog] = useState<WorkLog | null>(null);
 
   const workLogsRef = useMemoFirebase(
     () => userId ? collection(firestore, `artifacts/${APP_ID}/users/${userId}/work_logs`) : null,
@@ -297,6 +352,9 @@ function UserWorkLogs({ userId, userSettings }: { userId: string, userSettings: 
     });
   }, [workLogs, refreshKey]);
 
+  const handleRowClick = (log: WorkLog) => {
+    setSelectedLog(log);
+  };
 
   if (isLoading) {
     return (
@@ -329,7 +387,7 @@ function UserWorkLogs({ userId, userSettings }: { userId: string, userSettings: 
                 <TableBody>
                     {sortedWorkLogs && sortedWorkLogs.length > 0 ? (
                     sortedWorkLogs.map((log) => (
-                        <TableRow key={log.id}>
+                        <TableRow key={log.id} onClick={() => handleRowClick(log)} className="cursor-pointer">
                           <TableCell>
                               <Badge variant={log.type === 'particular' ? 'secondary' : 'default'}>{log.type}</Badge>
                           </TableCell>
@@ -342,7 +400,7 @@ function UserWorkLogs({ userId, userSettings }: { userId: string, userSettings: 
                           <TableCell>{log.duration ? `${log.duration.toFixed(2)}h` : '-'}</TableCell>
                           <TableCell className="text-right font-medium">€{log.amount?.toFixed(2) ?? '0.00'}</TableCell>
                           <TableCell className="text-right">
-                            <div className="flex items-center justify-end">
+                            <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
                                 <EditWorkLogDialog log={log} userSettings={userSettings} onLogUpdate={handleLogUpdate} />
                                 <DeleteWorkLogAlert log={log} onLogUpdate={handleLogUpdate} />
                             </div>
@@ -360,6 +418,7 @@ function UserWorkLogs({ userId, userSettings }: { userId: string, userSettings: 
                 </Table>
             </div>
         </CardContent>
+        <WorkLogDetailsDialog log={selectedLog} isOpen={!!selectedLog} onOpenChange={(isOpen) => !isOpen && setSelectedLog(null)} />
     </Card>
   );
 }
@@ -410,5 +469,3 @@ export default function UserRecordsPage({ params }: { params: { userId: string }
     </div>
   );
 }
-
-    
