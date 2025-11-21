@@ -293,20 +293,22 @@ export default function AdminUsersPage() {
   const { data: requests, isLoading: isLoadingRequests } = useCollection<AccessRequest>(requestsRef);
   const { data: users, isLoading: isLoadingUsers } = useCollection<UserProfile>(usersRef);
 
-    useEffect(() => {
+  useEffect(() => {
     if (!firestore || !users) return;
 
     const fetchAllSettings = async () => {
+      if(users.length === 0) {
+        setAllUserSettings([]);
+        return;
+      }
       const settingsPromises = users.map(user => {
         const settingsRef = doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`);
-        return getDocs(query(collection(doc(firestore, `artifacts/${APP_ID}/users/${user.uid}`), 'settings')))
-            .then(snapshot => {
-                if (!snapshot.empty) {
-                    const settingsDoc = snapshot.docs[0];
-                    return { ...settingsDoc.data(), userId: user.uid } as UserSettings;
-                }
-                return null;
-            });
+        return getDoc(settingsRef).then(docSnap => {
+          if (docSnap.exists()) {
+            return { ...docSnap.data(), userId: user.uid } as UserSettings;
+          }
+          return null;
+        })
       });
 
       const settingsResults = await Promise.all(settingsPromises);
@@ -315,6 +317,7 @@ export default function AdminUsersPage() {
 
     fetchAllSettings();
   }, [firestore, users]);
+
 
   const pendingRequests = requests?.filter(req => req.status === 'pending');
 
@@ -371,7 +374,8 @@ export default function AdminUsersPage() {
     return <>{data.map(renderRow)}</>;
   };
 
-  const isLoading = isLoadingUsers || isLoadingRequests || allUserSettings.length === 0 && (users && users.length > 0);
+  const isLoading = isLoadingUsers || isLoadingRequests || (users && users.length > 0 && allUserSettings.length === 0 && users.length !== allUserSettings.length);
+
 
   return (
     <div className="space-y-8">
@@ -386,11 +390,19 @@ export default function AdminUsersPage() {
       </div>
 
       <Tabs defaultValue="users">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="users">Usuarios Activos</TabsTrigger>
-          <TabsTrigger value="requests">
-            Solicitudes Pendientes {pendingRequests && pendingRequests.length > 0 && <Badge className="ml-2">{pendingRequests.length}</Badge>}
-          </TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 bg-slate-100 p-1">
+            <TabsTrigger 
+              value="users" 
+              className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm"
+            >
+              Usuarios Activos
+            </TabsTrigger>
+            <TabsTrigger 
+              value="requests"
+              className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm"
+            >
+              Solicitudes Pendientes {pendingRequests && pendingRequests.length > 0 && <Badge className="ml-2">{pendingRequests.length}</Badge>}
+            </TabsTrigger>
         </TabsList>
         <TabsContent value="users">
           <Card>
@@ -489,3 +501,5 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+
+    
