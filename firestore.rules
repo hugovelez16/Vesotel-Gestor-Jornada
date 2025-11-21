@@ -41,6 +41,15 @@ service cloud.firestore {
     }
 
     /**
+     * Checks if the authenticated user is the designated admin.
+     */
+    function isAdmin() {
+      // The admin UID is hardcoded for this specific rule.
+      // In a more complex app, this might check a custom claim or a role document.
+      return request.auth.uid == '1LCUlku13ghVTsjQLDglkj387cf2';
+    }
+    
+    /**
      * Checks if the authenticated user's UID matches the provided userId.
      * This is the primary function for enforcing document ownership.
      */
@@ -111,53 +120,54 @@ service cloud.firestore {
 
         /**
          * @description Secures user profile documents. Users can create, read, and update their own
-         * profile, but cannot see or list profiles of other users.
+         * profile, but cannot see or list profiles of other users. Admins can read all profiles.
          * @path /artifacts/{appId}/public/data/users/{userId}
+         * @allow (get, list) Admin can read any user profile.
          * @allow (create) An authenticated user with UID 'user123' creating their own profile at `/users/user123`.
-         * @deny (list) Any user trying to list all documents in the `/users` collection.
+         * @deny (list) A non-admin user trying to list all documents in the `/users` collection.
          * @deny (get) User 'user123' trying to read the profile at `/users/user456`.
-         * @principle Restricts access to a user's own data tree and prevents user enumeration.
+         * @principle Restricts access to a user's own data tree and prevents user enumeration, except for admins.
          */
         match /users/{userId} {
-          allow get: if isOwner(userId);
-          allow list: if false;
+          allow get: if isOwner(userId) || isAdmin();
+          allow list: if isAdmin();
           allow create: if isCreatingOwnUserDoc(userId);
           allow update: if isUpdatingOwnUserDoc(userId);
-          allow delete: if isExistingOwner(userId);
+          allow delete: if isExistingOwner(userId) || isAdmin();
         }
 
         /**
          * @description Manages requests for application access. Anyone can submit a request,
-         * but these requests cannot be read, modified, or deleted from the client-side.
-         * Management must be handled by a trusted backend service or admin.
+         * but these requests can only be managed by an admin.
          * @path /artifacts/{appId}/public/data/access_requests/{accessRequestId}
          * @allow (create) An unauthenticated visitor creating a new access request.
-         * @deny (get, list, update, delete) Any user trying to read or modify existing requests.
+         * @allow (read, list, update) Admin can manage all access requests.
+         * @deny (get, list, update, delete) Any non-admin user trying to read or modify existing requests.
          * @principle Enforces a "write-once" pattern for public submissions, securing all subsequent operations for admin-only access.
          */
         match /access_requests/{accessRequestId} {
-          allow get: if false; // TODO: Implement admin-only access rule
-          allow list: if false; // TODO: Implement admin-only access rule
+          allow get: if isAdmin();
+          allow list: if isAdmin();
           allow create: if true;
-          allow update: if false; // TODO: Implement admin-only access rule
-          allow delete: if false; // TODO: Implement admin-only access rule
+          allow update: if isAdmin();
+          allow delete: if isAdmin();
         }
 
         /**
-         * @description A read-only list of users who are permitted to use the application.
-         * This collection is managed by a backend process. Authenticated clients can read it
-         * to verify access, but cannot modify it.
+         * @description A list of users who are permitted to use the application.
+         * This collection is readable by authenticated users but can only be written to by admins.
          * @path /artifacts/{appId}/public/data/allowed_users/{allowedUserId}
-         * @allow (get, list) Any authenticated user reading the collection.
-         * @deny (create, update, delete) Any user attempting to modify the allow-list.
-         * @principle Protects critical application configuration by making it read-only for clients.
+         * @allow (read, list) Any authenticated user can check the list.
+         * @allow (write) Only an admin can add or remove users.
+         * @deny (create, update, delete) Any non-admin user attempting to modify the allow-list.
+         * @principle Protects critical application configuration by making it read-only for regular clients.
          */
         match /allowed_users/{allowedUserId} {
           allow get: if isSignedIn();
           allow list: if isSignedIn();
-          allow create: if false;
-          allow update: if false;
-          allow delete: if false;
+          allow create: if isAdmin();
+          allow update: if isAdmin();
+          allow delete: if isAdmin();
         }
       }
 
@@ -174,35 +184,37 @@ service cloud.firestore {
         allow write: if false;
 
         /**
-         * @description Secures user-specific work log entries. A user has full control over their own logs
-         * but has no access to anyone else's.
+         * @description Secures user-specific work log entries. A user has full control over their own logs.
+         * An admin can read any user's logs for the timeline view.
          * @path /artifacts/{appId}/users/{userId}/work_logs/{workLogId}
          * @allow (create, list) User 'user123' creating or listing work logs under `/users/user123/work_logs`.
+         * @allow (read, list) Admin user can read and list any user's work logs.
          * @deny (get) User 'user456' trying to read a work log under `/users/user123/work_logs`.
-         * @principle Enforces document ownership for all operations within a user-specific subcollection.
+         * @principle Enforces document ownership for all operations, with a read-only exception for admins.
          */
         match /work_logs/{workLogId} {
-          allow get: if isOwner(userId);
-          allow list: if isOwner(userId);
+          allow get: if isOwner(userId) || isAdmin();
+          allow list: if isOwner(userId) || isAdmin();
           allow create: if isCreatingOwnSubDoc(userId);
           allow update: if isUpdatingOwnSubDoc(userId);
-          allow delete: if isExistingOwner(userId);
+          allow delete: if isExistingOwner(userId) || isAdmin();
         }
 
         /**
-         * @description Secures the user's single configuration document. A user can read and modify
-         * their own settings.
+         * @description Secures the user's single configuration document. A user can manage
+         * their own settings. An admin can read them.
          * @path /artifacts/{appId}/users/{userId}/settings/config
-         * @allow (get, update) User 'user123' reading or updating their config doc at `/users/user123/settings/config`.
+         * @allow (get, update) User 'user123' reading or updating their config doc.
+         * @allow (get) Admin user can read any user's config.
          * @deny (get) User 'user456' attempting to read the config doc for 'user123'.
-         * @principle Enforces document ownership for a singleton document within a user's private data tree.
+         * @principle Enforces document ownership for a singleton document, with read-only exception for admins.
          */
         match /settings/config {
-          allow get: if isOwner(userId);
-          allow list: if isOwner(userId); // list is allowed but applies to a single document path
+          allow get: if isOwner(userId) || isAdmin();
+          allow list: if isOwner(userId) || isAdmin();
           allow create: if isCreatingOwnSubDoc(userId);
           allow update: if isUpdatingOwnSubDoc(userId);
-          allow delete: if isExistingOwner(userId);
+          allow delete: if isExistingOwner(userId) || isAdmin();
         }
       }
     }
