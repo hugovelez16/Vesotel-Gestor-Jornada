@@ -2,7 +2,7 @@
 "use client";
 
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
-import { doc, collection, query, orderBy } from "firebase/firestore";
+import { doc, collection, query, orderBy, setDoc } from "firebase/firestore";
 import { APP_ID } from "@/lib/config";
 import type { UserProfile, UserSettings, WorkLog } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -22,6 +22,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from "date-fns";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect, FormEvent } from "react";
 
 function UserWorkLogs({ userId }: { userId: string }) {
   const firestore = useFirestore();
@@ -94,6 +97,7 @@ function UserWorkLogs({ userId }: { userId: string }) {
 export default function UserDetailPage() {
   const firestore = useFirestore();
   const params = useParams();
+  const { toast } = useToast();
   const userId = params.userId as string;
 
   const userProfileRef = useMemoFirebase(
@@ -108,12 +112,77 @@ export default function UserDetailPage() {
   const { data: profile, isLoading: isLoadingProfile } = useDoc<UserProfile>(userProfileRef);
   const { data: settings, isLoading: isLoadingSettings } = useDoc<UserSettings>(userSettingsRef);
 
+  const [formData, setFormData] = useState<Partial<UserProfile & UserSettings>>({});
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (profile || settings) {
+      setFormData({
+        ...profile,
+        ...settings,
+      });
+    }
+  }, [profile, settings]);
+
+
   const isLoading = isLoadingProfile || isLoadingSettings;
   
   const getInitials = (name: string | null | undefined = ''): string => {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : type === 'number' ? Number(value) : value
+    }));
+  };
+
+  const handleFormSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!firestore || !userId) return;
+    setIsSaving(true);
+
+    const profileData: Partial<UserProfile> = {
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+    };
+
+    const settingsData: Partial<UserSettings> = {
+      hourlyRate: formData.hourlyRate,
+      dailyRate: formData.dailyRate,
+      coordinationRate: formData.coordinationRate,
+      nightRate: formData.nightRate,
+      isGross: formData.isGross,
+    };
+    
+    try {
+      if(userProfileRef) {
+        await setDoc(userProfileRef, profileData, { merge: true });
+      }
+      if(userSettingsRef) {
+        await setDoc(userSettingsRef, settingsData, { merge: true });
+      }
+
+      toast({
+        title: "Éxito",
+        description: "Los datos del usuario han sido actualizados.",
+      });
+
+    } catch (error: any) {
+      console.error("Error saving user data:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron actualizar los datos del usuario.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
 
   if (isLoading) {
     return (
@@ -135,17 +204,35 @@ export default function UserDetailPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <form onSubmit={handleFormSubmit} className="space-y-8">
       <div className="flex items-center gap-4">
         <Avatar className="h-20 w-20">
-          <AvatarImage src={(profile as any).photoURL ?? ""} alt={profile.firstName} />
-          <AvatarFallback className="text-2xl">{getInitials(`${profile.firstName} ${profile.lastName}`)}</AvatarFallback>
+          <AvatarImage src={(profile as any).photoURL ?? ""} alt={formData.firstName} />
+          <AvatarFallback className="text-2xl">{getInitials(`${formData.firstName} ${formData.lastName}`)}</AvatarFallback>
         </Avatar>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{profile.firstName} {profile.lastName}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{formData.firstName} {formData.lastName}</h1>
           <p className="text-muted-foreground">{profile.email}</p>
         </div>
       </div>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Información Personal</CardTitle>
+          <CardDescription>Datos básicos del usuario.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="firstName">Nombre</Label>
+              <Input id="firstName" name="firstName" value={formData.firstName || ''} onChange={handleInputChange} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lastName">Apellidos</Label>
+              <Input id="lastName" name="lastName" value={formData.lastName || ''} onChange={handleInputChange} />
+            </div>
+        </CardContent>
+      </Card>
+
 
       <Card>
         <CardHeader>
@@ -153,34 +240,37 @@ export default function UserDetailPage() {
           <CardDescription>Tarifas y ajustes de cálculo para este usuario.</CardDescription>
         </CardHeader>
         <CardContent>
-          {settings ? (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               <div className="space-y-2">
-                <Label>Tarifa por Hora (€)</Label>
-                <Input value={settings.hourlyRate} disabled />
+                <Label htmlFor="hourlyRate">Tarifa por Hora (€)</Label>
+                <Input id="hourlyRate" name="hourlyRate" type="number" step="0.01" value={formData.hourlyRate ?? 0} onChange={handleInputChange} />
               </div>
               <div className="space-y-2">
-                <Label>Tarifa por Día (€)</Label>
-                <Input value={settings.dailyRate} disabled />
+                <Label htmlFor="dailyRate">Tarifa por Día (€)</Label>
+                <Input id="dailyRate" name="dailyRate" type="number" step="0.01" value={formData.dailyRate ?? 0} onChange={handleInputChange} />
               </div>
                <div className="space-y-2">
-                <Label>Plus Coordinación (€)</Label>
-                <Input value={settings.coordinationRate ?? 10} disabled />
+                <Label htmlFor="coordinationRate">Plus Coordinación (€)</Label>
+                <Input id="coordinationRate" name="coordinationRate" type="number" step="0.01" value={formData.coordinationRate ?? 10} onChange={handleInputChange} />
               </div>
                <div className="space-y-2">
-                <Label>Plus Nocturnidad (€)</Label>
-                <Input value={settings.nightRate ?? 30} disabled />
+                <Label htmlFor="nightRate">Plus Nocturnidad (€)</Label>
+                <Input id="nightRate" name="nightRate" type="number" step="0.01" value={formData.nightRate ?? 30} onChange={handleInputChange} />
               </div>
               <div className="flex items-center space-x-2 pt-6">
-                <Switch id="isGross" checked={settings.isGross} disabled />
+                <Switch id="isGross" name="isGross" checked={formData.isGross ?? false} onCheckedChange={(checked) => setFormData(p => ({...p, isGross: checked}))} />
                 <Label htmlFor="isGross" className="whitespace-nowrap">Cálculo en Bruto (con IRPF)</Label>
               </div>
             </div>
-          ) : (
-            <p className="text-muted-foreground">El usuario aún no ha configurado sus tarifas.</p>
-          )}
         </CardContent>
       </Card>
+
+      <div className="mt-8 flex justify-end">
+          <Button type="submit" disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Guardar Cambios
+          </Button>
+      </div>
 
       <Card>
         <CardHeader>
@@ -191,6 +281,8 @@ export default function UserDetailPage() {
            <UserWorkLogs userId={userId} />
         </CardContent>
       </Card>
-    </div>
+    </form>
   );
 }
+
+    
