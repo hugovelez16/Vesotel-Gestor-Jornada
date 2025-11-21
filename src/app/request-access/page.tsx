@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useAuth } from "@/contexts/auth-context";
+import { useUser, useAuth as useFirebaseAuth, useFirestore } from "@/firebase";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -14,8 +14,8 @@ import { Input } from "@/components/ui/input";
 import { VesotelLogo } from "@/components/icons";
 import { useToast } from "@/hooks/use-toast";
 import { collection, addDoc, serverTimestamp, query, where, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { APP_ID } from "@/lib/config";
+import { signOut } from "firebase/auth";
 
 const formSchema = z.object({
   firstName: z.string().min(2, "El nombre es demasiado corto"),
@@ -23,33 +23,46 @@ const formSchema = z.object({
 });
 
 export default function RequestAccessPage() {
-  const { user, isAllowed, loading, logout } = useAuth();
+  const { user, isUserLoading } = useUser();
+  const auth = useFirebaseAuth();
+  const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
+  
+  // This state will be derived from checking user's status
+  const [isAllowed, setIsAllowed] = useState(false);
+
 
   useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        router.replace("/login");
-      } else if (isAllowed) {
-        router.replace("/dashboard");
-      } else {
-        // Check if a request already exists
-        const checkRequest = async () => {
-          if (user?.email) {
-            const q = query(collection(db, `artifacts/${APP_ID}/public/data/access_requests`), where("email", "==", user.email));
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-              setRequestSent(true);
+    if (!isUserLoading && user) {
+        // A simple check. In a real app this might involve checking a custom claim or a document in Firestore.
+        const checkAccess = async () => {
+            if(user.email === "hugo@vesotel.com"){
+                 setIsAllowed(true);
+                 router.replace("/dashboard");
+                 return;
             }
-          }
-        };
-        checkRequest();
-      }
+            const q = query(collection(firestore, `artifacts/${APP_ID}/public/data/allowed_users`), where("email", "==", user.email));
+            const querySnapshot = await getDocs(q);
+            if(!querySnapshot.empty) {
+                setIsAllowed(true);
+                router.replace("/dashboard");
+            } else {
+                 const reqQ = query(collection(firestore, `artifacts/${APP_ID}/public/data/access_requests`), where("email", "==", user.email));
+                 const reqSnap = await getDocs(reqQ);
+                 if(!reqSnap.empty){
+                     setRequestSent(true);
+                 }
+            }
+        }
+        checkAccess();
+
+    } else if (!isUserLoading && !user) {
+        router.replace("/login");
     }
-  }, [user, isAllowed, loading, router]);
+  }, [user, isUserLoading, router, firestore]);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -59,6 +72,10 @@ export default function RequestAccessPage() {
     },
   });
 
+  const logout = () => {
+      signOut(auth);
+  }
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!user || !user.email) {
       toast({ title: "Error", description: "No se ha podido identificar al usuario.", variant: "destructive" });
@@ -67,7 +84,7 @@ export default function RequestAccessPage() {
 
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, `artifacts/${APP_ID}/public/data/access_requests`), {
+      await addDoc(collection(firestore, `artifacts/${APP_ID}/public/data/access_requests`), {
         ...values,
         email: user.email,
         status: "pending",
@@ -75,15 +92,15 @@ export default function RequestAccessPage() {
       });
       setRequestSent(true);
       toast({ title: "Solicitud enviada", description: "Tu solicitud de acceso ha sido enviada para su revisión." });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error sending access request:", error);
-      toast({ title: "Error", description: "No se pudo enviar la solicitud. Inténtalo de nuevo.", variant: "destructive" });
+      toast({ title: "Error", description: error.message || "No se pudo enviar la solicitud. Inténtalo de nuevo.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  if (loading || (!loading && !user) || (!loading && isAllowed)) {
+  if (isUserLoading || (!isUserLoading && isAllowed)) {
     return <div className="flex h-screen items-center justify-center">Cargando...</div>;
   }
   

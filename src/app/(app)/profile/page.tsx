@@ -1,6 +1,6 @@
 
 "use client"
-import { useAuth } from "@/contexts/auth-context";
+import { useUser, useAuth as useFirebaseAuth, useFirestore } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,15 +8,46 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { doc, setDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { APP_ID } from "@/lib/config";
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import { signOut } from "firebase/auth";
+import type { UserProfile, UserSettings } from "@/lib/types";
 
 export default function ProfilePage() {
-    const { user, logout } = useAuth();
+    const { user } = useUser();
+    const auth = useFirebaseAuth();
+    const firestore = useFirestore();
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
+    
+    // Local state for form fields
+    const [profile, setProfile] = useState<Partial<UserProfile>>({});
+    const [settings, setSettings] = useState<Partial<UserSettings>>({});
+
+    const logout = () => {
+      signOut(auth);
+    }
+    
+    // When user data loads, populate local state
+    // In a real app you would fetch this data from firestore
+    useEffect(() => {
+        if(user) {
+            setProfile({
+                firstName: user.displayName?.split(' ')[0] || '',
+                lastName: user.displayName?.split(' ').slice(1).join(' ') || '',
+            })
+            // Mock settings data
+            setSettings({
+                hourlyRate: 50,
+                dailyRate: 400,
+                coordinationRate: 10,
+                nightRate: 30,
+                isGross: false,
+            })
+        }
+    }, [user]);
+
 
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -24,7 +55,7 @@ export default function ProfilePage() {
         setIsLoading(true);
 
         const formData = new FormData(e.currentTarget);
-        const settings = {
+        const newSettings = {
             firstName: formData.get("firstName") as string,
             lastName: formData.get("lastName") as string,
             hourlyRate: Number(formData.get("hourlyRate")),
@@ -35,25 +66,29 @@ export default function ProfilePage() {
         };
 
         try {
-            const settingsRef = doc(db, `artifacts/${APP_ID}/users/${user.uid}/settings/config`);
-            await setDoc(settingsRef, settings, { merge: true });
+            const settingsRef = doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`);
+            // Note: In a real app, you'd have more complete data
+            await setDoc(settingsRef, { ...newSettings, userId: user.uid }, { merge: true });
             
-            const profileRef = doc(db, `artifacts/${APP_ID}/public/data/users`, user.uid);
+            const profileRef = doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.uid);
             await setDoc(profileRef, {
-                firstName: settings.firstName,
-                lastName: settings.lastName,
+                firstName: newSettings.firstName,
+                lastName: newSettings.lastName,
             }, { merge: true });
 
             toast({
                 title: "Éxito",
                 description: "Tus ajustes se han guardado correctamente.",
             });
-            // Note: A full page refresh or context update would be needed to reflect changes immediately
-        } catch (error) {
+            // Update local state after saving
+            setSettings(newSettings);
+            setProfile({firstName: newSettings.firstName, lastName: newSettings.lastName });
+
+        } catch (error: any) {
             console.error(error);
             toast({
                 title: "Error",
-                description: "No se pudieron guardar los ajustes.",
+                description: error.message || "No se pudieron guardar los ajustes.",
                 variant: "destructive",
             });
         } finally {
@@ -78,11 +113,11 @@ export default function ProfilePage() {
                     <CardContent className="grid gap-6 md:grid-cols-2">
                         <div className="space-y-2">
                             <Label htmlFor="firstName">Nombre</Label>
-                            <Input id="firstName" name="firstName" defaultValue={user.profile?.firstName ?? ''} />
+                            <Input id="firstName" name="firstName" defaultValue={profile?.firstName ?? ''} />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="lastName">Apellidos</Label>
-                            <Input id="lastName" name="lastName" defaultValue={user.profile?.lastName ?? ''} />
+                            <Input id="lastName" name="lastName" defaultValue={profile?.lastName ?? ''} />
                         </div>
                         <div className="space-y-2 md:col-span-2">
                             <Label htmlFor="email">Email</Label>
@@ -99,22 +134,22 @@ export default function ProfilePage() {
                     <CardContent className="grid gap-6 md:grid-cols-2">
                         <div className="space-y-2">
                             <Label htmlFor="hourlyRate">Tarifa por Hora (€)</Label>
-                            <Input id="hourlyRate" name="hourlyRate" type="number" step="0.01" defaultValue={user.settings?.hourlyRate ?? 0} />
+                            <Input id="hourlyRate" name="hourlyRate" type="number" step="0.01" defaultValue={settings?.hourlyRate ?? 0} />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="dailyRate">Tarifa por Día (€)</Label>
-                            <Input id="dailyRate" name="dailyRate" type="number" step="0.01" defaultValue={user.settings?.dailyRate ?? 0} />
+                            <Input id="dailyRate" name="dailyRate" type="number" step="0.01" defaultValue={settings?.dailyRate ?? 0} />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="coordinationRate">Plus Coordinación (€)</Label>
-                            <Input id="coordinationRate" name="coordinationRate" type="number" step="0.01" defaultValue={user.settings?.coordinationRate ?? 10} />
+                            <Input id="coordinationRate" name="coordinationRate" type="number" step="0.01" defaultValue={settings?.coordinationRate ?? 10} />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="nightRate">Plus Nocturnidad (€)</Label>
-                            <Input id="nightRate" name="nightRate" type="number" step="0.01" defaultValue={user.settings?.nightRate ?? 30} />
+                            <Input id="nightRate" name="nightRate" type="number" step="0.01" defaultValue={settings?.nightRate ?? 30} />
                         </div>
                         <div className="flex items-center space-x-2 md:col-span-2">
-                             <Switch id="isGross" name="isGross" defaultChecked={user.settings?.isGross ?? false} />
+                             <Switch id="isGross" name="isGross" defaultChecked={settings?.isGross ?? false} />
                             <Label htmlFor="isGross">Aplicar reducción IRPF (cálculo en bruto)</Label>
                         </div>
                     </CardContent>

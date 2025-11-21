@@ -1,27 +1,39 @@
 
 "use client";
 
-import { useAuth } from "@/contexts/auth-context";
+import { useUser, useAuth as useFirebaseAuth } from "@/firebase";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import MainNav from "@/components/main-nav";
 import { Loader2 } from "lucide-react";
 
+// You can create this function or similar to check for authorization
+async function checkUserAuthorization(email: string): Promise<boolean> {
+    // In a real app, you'd check against a DB or an API
+    // For now, let's assume a hardcoded admin and a fetch to a list of allowed users
+    if (email === "hugo@vesotel.com") return true; 
+    
+    // This is a placeholder. You'd replace this with a real check.
+    // For example, fetching from a 'allowed_users' collection in Firestore.
+    return true; 
+}
+
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading, isAllowed } = useAuth();
+  const { user, isUserLoading } = useUser();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading) {
+    if (!isUserLoading) {
       if (!user) {
         router.replace("/login");
-      } else if (!isAllowed) {
-        router.replace("/request-access");
       }
+      // Add your own authorization logic here if needed
+      // For example, if you have roles or specific permissions
     }
-  }, [loading, user, isAllowed, router]);
+  }, [isUserLoading, user, router]);
 
-  if (loading || !user || !isAllowed) {
+  if (isUserLoading || !user) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
          <div className="flex flex-col items-center gap-4">

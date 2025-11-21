@@ -1,26 +1,28 @@
 
 "use client";
 
-import { useAuth } from "@/contexts/auth-context";
+import { useUser } from "@/firebase";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import { ADMIN_EMAIL } from "@/lib/config";
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { isAdmin, loading } = useAuth();
+  const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const isAdmin = user?.email === ADMIN_EMAIL;
 
   useEffect(() => {
-    if (!loading && !isAdmin) {
+    if (!isUserLoading && !isAdmin) {
       router.replace("/dashboard");
     }
-  }, [loading, isAdmin, router]);
+  }, [isUserLoading, isAdmin, router]);
 
-  if (loading || !isAdmin) {
+  if (isUserLoading || !isAdmin) {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
             <div className="flex flex-col items-center gap-4">

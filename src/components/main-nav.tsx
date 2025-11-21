@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/contexts/auth-context";
+import { useUser, useAuth as useFirebaseAuth } from "@/firebase";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -26,6 +26,8 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { Button } from "./ui/button";
+import { signOut } from "firebase/auth";
+import { ADMIN_EMAIL } from "@/lib/config";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -39,11 +41,18 @@ const adminNavItems = [
 ];
 
 export default function MainNav() {
-  const { user, isAdmin, logout } = useAuth();
+  const { user } = useUser();
+  const auth = useFirebaseAuth();
   const pathname = usePathname();
+
+  const isAdmin = user?.email === ADMIN_EMAIL;
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  }
+  
+  const logout = () => {
+    signOut(auth);
   }
 
   const NavLinks = ({ isMobile = false }: { isMobile?: boolean }) => (

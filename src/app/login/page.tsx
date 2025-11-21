@@ -1,22 +1,34 @@
 
 "use client";
 
-import { useAuth } from "@/contexts/auth-context";
+import { useUser, useAuth as useFirebaseAuth } from "@/firebase";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VesotelLogo } from "@/components/icons";
+import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 
 export default function LoginPage() {
-  const { user, signInWithGoogle, loading } = useAuth();
+  const { user, isUserLoading } = useUser();
+  const auth = useFirebaseAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (user) {
+    if (!isUserLoading && user) {
       router.replace("/dashboard");
     }
-  }, [user, router]);
+  }, [user, isUserLoading, router]);
+
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Error signing in with Google:", error);
+    }
+  };
+
 
   const GoogleIcon = () => (
     <svg className="mr-2 h-4 w-4" viewBox="0 0 48 48">
@@ -38,9 +50,9 @@ export default function LoginPage() {
           <Button
             className="w-full"
             onClick={signInWithGoogle}
-            disabled={loading}
+            disabled={isUserLoading}
           >
-            {loading ? "Cargando..." : <> <GoogleIcon /> Iniciar sesión con Google </>}
+            {isUserLoading ? "Cargando..." : <> <GoogleIcon /> Iniciar sesión con Google </>}
           </Button>
         </CardContent>
       </Card>
