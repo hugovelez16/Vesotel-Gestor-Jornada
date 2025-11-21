@@ -5,16 +5,21 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { ADMIN_EMAIL, APP_ID } from "@/lib/config";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Loader2, Users, BookOpen, ChevronLeft, ChevronRight, Calendar as CalendarIcon, DollarSign, Clock, Briefcase } from "lucide-react";
+import { PlusCircle, Loader2, Users, BookOpen, ChevronLeft, ChevronRight, Calendar as CalendarIcon, DollarSign, Clock, Briefcase, Edit } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import type { UserProfile, WorkLog } from "@/lib/types";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import type { UserProfile, UserSettings, WorkLog } from "@/lib/types";
+import { collection, query, where, getDocs, doc } from "firebase/firestore";
 import { addDays, format, startOfDay, parseISO, getMonth, getYear, isSameMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { EditWorkLogDialog } from "@/app/admin/users/[userId]/records/page";
 
 
 const StatCard = ({ title, value, icon: Icon, colorClass = "text-primary" }: { title: string, value: string, icon: React.ElementType, colorClass?: string }) => (
@@ -140,17 +145,127 @@ function UserDashboard() {
 }
 
 
+function TimelineLogDetailsDialog({ log, userSettings, isOpen, onOpenChange, onLogUpdate }: { log: WorkLog | null, userSettings: UserSettings | null, isOpen: boolean, onOpenChange: (open: boolean) => void, onLogUpdate: () => void }) {
+    if (!log) return null;
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Detalles del Registro</DialogTitle>
+                    <DialogDescription>
+                        Información completa del registro de jornada.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 text-sm">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                             <strong>Tipo:</strong> <Badge variant={log.type === 'particular' ? 'secondary' : 'default'}>{log.type}</Badge>
+                        </div>
+                         {log && userSettings && (
+                           <EditWorkLogDialog log={log} userId={log.userId} userSettings={userSettings} onLogUpdate={onLogUpdate}>
+                                <Button variant="ghost" size="icon">
+                                    <Edit className="h-4 w-4" />
+                                </Button>
+                           </EditWorkLogDialog>
+                        )}
+                    </div>
+                    {log.type === 'particular' ? (
+                        <>
+                            <div><strong>Fecha:</strong> {log.date ? format(parseISO(log.date), 'PPP', { locale: es }) : '-'}</div>
+                            <div><strong>Hora Inicio:</strong> {log.startTime ?? '-'}</div>
+                            <div><strong>Hora Fin:</strong> {log.endTime ?? '-'}</div>
+                            <div><strong>Duración:</strong> {log.duration ?? '-'} horas</div>
+                        </>
+                    ) : (
+                        <>
+                            <div><strong>Fecha Inicio:</strong> {log.startDate ? format(parseISO(log.startDate), 'PPP', { locale: es }) : '-'}</div>
+                            <div><strong>Fecha Fin:</strong> {log.endDate ? format(parseISO(log.endDate), 'PPP', { locale: es }) : '-'}</div>
+                        </>
+                    )}
+                    <div><strong>Descripción:</strong> {log.description}</div>
+                    <div className="font-bold text-lg text-green-600">Importe: €{log.amount?.toFixed(2) ?? '0.00'}</div>
+                    <div><strong>Tarifa Aplicada:</strong> €{log.rateApplied?.toFixed(2)}/h</div>
+                     <div className="pt-2">
+                        <strong>Cálculo de importe:</strong> {log.isGrossCalculation ? 'Bruto' : 'Neto'}
+                    </div>
+                     <div className="space-y-2 pt-2">
+                         <div className="flex items-center gap-2">
+                            <Switch checked={log.hasCoordination} disabled id="hasCoordination" />
+                            <Label htmlFor="hasCoordination">Coordinación</Label>
+                        </div>
+                        {(log.type === 'tutorial' || log.type === 'particular') && (
+                             <div className="flex items-center gap-2">
+                                <Switch checked={log.hasNight} disabled id="hasNight" />
+                                <Label htmlFor="hasNight">Nocturnidad</Label>
+                            </div>
+                        )}
+                        {log.type === 'tutorial' && log.hasNight && (
+                            <div className="flex items-center gap-2">
+                                <Switch checked={log.arrivesPrior} disabled id="arrivesPrior" />
+                                <Label htmlFor="arrivesPrior">Llegada día anterior</Label>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 function AdminTimeline() {
     const firestore = useFirestore();
     const [selectedDate, setSelectedDate] = useState(startOfDay(new Date()));
     const [workLogs, setWorkLogs] = useState<WorkLog[]>([]);
     const [isLoadingWorkLogs, setIsLoadingWorkLogs] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
+
+    const [selectedLog, setSelectedLog] = useState<WorkLog | null>(null);
 
     const usersRef = useMemoFirebase(
         () => firestore ? collection(firestore, `artifacts/${APP_ID}/public/data/users`) : null,
         [firestore]
     );
     const { data: users, isLoading: isLoadingUsers } = useCollection<UserProfile>(usersRef);
+
+    const allSettingsRef = useMemoFirebase(() => {
+        if (!firestore || !users) return [];
+        return users.map(u => doc(firestore, `artifacts/${APP_ID}/users/${u.uid}/settings/config`));
+    }, [firestore, users]);
+
+    // This is not a hook, so we fetch manually.
+    const [allUserSettings, setAllUserSettings] = useState<Record<string, UserSettings>>({});
+    useEffect(() => {
+        if (allSettingsRef.length === 0 || !firestore) return;
+        
+        const fetchSettings = async () => {
+            const settingsMap: Record<string, UserSettings> = {};
+            const userSettingsDocs = await Promise.all(allSettingsRef.map(ref => getDocs(collection(ref.parent))));
+            
+            const settingsDocs = await Promise.all(
+                users?.map(user => getDocs(query(collection(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings`)))) ?? []
+            );
+
+            for (const user of users || []) {
+                const settingsDocRef = doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`);
+                const docSnap = await getDocs(query(collection(settingsDocRef.parent)));
+                if (!docSnap.empty) {
+                     const configDoc = docSnap.docs[0];
+                     if(configDoc.exists()){
+                        settingsMap[user.uid] = configDoc.data() as UserSettings;
+                     }
+                }
+            }
+            setAllUserSettings(settingsMap);
+        }
+        fetchSettings();
+
+    }, [allSettingsRef, firestore, users]);
+
+    const handleLogUpdate = () => {
+      setRefreshKey(prev => prev + 1);
+      setSelectedLog(null);
+    };
 
     useEffect(() => {
         if (!firestore || !users || users.length === 0) {
@@ -190,7 +305,7 @@ function AdminTimeline() {
         };
 
         fetchWorkLogs();
-    }, [firestore, users, selectedDate]);
+    }, [firestore, users, selectedDate, refreshKey]);
 
 
     const isLoading = isLoadingUsers || isLoadingWorkLogs;
@@ -240,119 +355,129 @@ function AdminTimeline() {
 
 
         return (
-            <div
+            <button
                 key={log.id}
+                onClick={() => setSelectedLog(log)}
                 className={cn(
-                    "absolute top-1/2 -translate-y-1/2 h-12 rounded-lg p-2 text-white shadow-md flex flex-col justify-center",
-                    log.type === 'tutorial' ? "bg-purple-500/90" : "bg-blue-500/90"
+                    "absolute top-1/2 -translate-y-1/2 h-12 rounded-lg p-2 text-white shadow-md flex flex-col justify-center text-left",
+                    log.type === 'tutorial' ? "bg-purple-500/90 hover:bg-purple-600/90" : "bg-blue-500/90 hover:bg-blue-600/90"
                 )}
                 style={{ left: `${left}%`, width: `${width}%` }}
                 title={`${log.description} (${displayStartTime ?? ''} - ${displayEndTime ?? ''})`}
             >
                 <p className="truncate text-xs font-semibold">{log.description}</p>
                 <p className="truncate text-xs">{displayStartTime} - {displayEndTime}</p>
-            </div>
+            </button>
         )
     }
 
     return (
-        <Card>
-            <CardHeader>
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <CardTitle>Cronograma de Trabajo Diario</CardTitle>
-                        <CardDescription>Visualización de los turnos de trabajo del día.</CardDescription>
-                    </div>
-                     <div className="flex items-center gap-2">
-                        <div className="flex shrink-0 items-center gap-1 rounded-md border bg-card p-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setSelectedDate(addDays(selectedDate, -1))}>
-                                <ChevronLeft className="h-4 w-4" />
-                            </Button>
-                             <Popover>
-                                <PopoverTrigger asChild>
-                                <Button
-                                    variant={"outline"}
-                                    className={cn(
-                                    "w-full shrink justify-start text-left font-normal",
-                                    !selectedDate && "text-muted-foreground"
-                                    )}
-                                >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {selectedDate ? format(selectedDate, "PPP", { locale: es }) : <span>Elige una fecha</span>}
+        <>
+            <Card>
+                <CardHeader>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <CardTitle>Cronograma de Trabajo Diario</CardTitle>
+                            <CardDescription>Visualización de los turnos de trabajo del día.</CardDescription>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="flex shrink-0 items-center gap-1 rounded-md border bg-card p-1">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setSelectedDate(addDays(selectedDate, -1))}>
+                                    <ChevronLeft className="h-4 w-4" />
                                 </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                <Calendar
-                                    mode="single"
-                                    selected={selectedDate}
-                                    onSelect={(day) => day && setSelectedDate(startOfDay(day))}
-                                    initialFocus
-                                />
-                                </PopoverContent>
-                            </Popover>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setSelectedDate(addDays(selectedDate, 1))}>
-                                <ChevronRight className="h-4 w-4" />
-                            </Button>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                        "w-full shrink justify-start text-left font-normal",
+                                        !selectedDate && "text-muted-foreground"
+                                        )}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {selectedDate ? format(selectedDate, "PPP", { locale: es }) : <span>Elige una fecha</span>}
+                                    </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                    <Calendar
+                                        mode="single"
+                                        selected={selectedDate}
+                                        onSelect={(day) => day && setSelectedDate(startOfDay(day))}
+                                        initialFocus
+                                    />
+                                    </PopoverContent>
+                                </Popover>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setSelectedDate(addDays(selectedDate, 1))}>
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
                         </div>
                     </div>
-                </div>
-                 <div className="flex items-center gap-4 pt-4 text-sm">
-                    <div className="flex items-center gap-2"><div className="h-3 w-3 rounded-full bg-blue-500"></div>Particular</div>
-                    <div className="flex items-center gap-2"><div className="h-3 w-3 rounded-full bg-purple-500"></div>Tutorial</div>
-                </div>
-            </CardHeader>
-            <CardContent className="overflow-x-auto">
-                <div className="relative" style={{minWidth: '1200px'}}>
-                    {isLoading && (
-                         <div className="flex h-64 w-full items-center justify-center">
-                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                        </div>
-                    )}
-                    {!isLoading && (
-                        <div className="grid grid-cols-[200px_1fr] border-t">
-                            {/* Header Row */}
-                            <div className="sticky left-0 z-10 border-b border-r bg-card"></div>
-                            <div className="grid" style={{ gridTemplateColumns: `repeat(${totalHours}, 1fr)` }}>
-                                {hours.slice(0,-1).map(hour => (
-                                    <div key={hour} className="border-b border-r p-2 text-center text-xs text-muted-foreground h-10 flex items-center justify-center">
-                                        {String(hour).padStart(2, '0')}:00
-                                    </div>
+                    <div className="flex items-center gap-4 pt-4 text-sm">
+                        <div className="flex items-center gap-2"><div className="h-3 w-3 rounded-full bg-blue-500"></div>Particular</div>
+                        <div className="flex items-center gap-2"><div className="h-3 w-3 rounded-full bg-purple-500"></div>Tutorial</div>
+                    </div>
+                </CardHeader>
+                <CardContent className="overflow-x-auto">
+                    <div className="relative" style={{minWidth: '1200px'}}>
+                        {isLoading && (
+                            <div className="flex h-64 w-full items-center justify-center">
+                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            </div>
+                        )}
+                        {!isLoading && (
+                            <div className="grid grid-cols-[200px_1fr] border-t">
+                                {/* Header Row */}
+                                <div className="sticky left-0 z-10 border-b border-r bg-card"></div>
+                                <div className="grid" style={{ gridTemplateColumns: `repeat(${totalHours}, 1fr)` }}>
+                                    {hours.slice(0,-1).map(hour => (
+                                        <div key={hour} className="border-b border-r p-2 text-center text-xs text-muted-foreground h-10 flex items-center justify-center">
+                                            {String(hour).padStart(2, '0')}:00
+                                        </div>
+                                    ))}
+                                </div>
+                                
+                                {/* User Rows */}
+                                {users?.map(user => (
+                                    <React.Fragment key={user.uid}>
+                                        {/* User Info Cell */}
+                                        <div className="sticky left-0 z-10 flex h-20 items-center gap-3 border-b border-r bg-card p-2">
+                                            <Avatar className="h-10 w-10">
+                                                <AvatarImage src={(user as any).photoURL ?? ""} alt={user.firstName} />
+                                                <AvatarFallback className="text-lg">{getInitials(`${user.firstName} ${user.lastName}`)}</AvatarFallback>
+                                            </Avatar>
+                                            <div className="overflow-hidden">
+                                                <p className="truncate font-medium">{user.firstName} {user.lastName}</p>
+                                                <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                                            </div>
+                                        </div>
+                                        {/* User Timeline Cell */}
+                                        <div className="relative border-b">
+                                            <div className="grid h-full" style={{ gridTemplateColumns: `repeat(${totalHours}, 1fr)` }}>
+                                                {hours.slice(0,-1).map(hour => <div key={hour} className="h-full border-r"></div>)}
+                                            </div>
+                                            {workLogs?.filter(log => log.userId === user.uid).map(log => renderLog(log))}
+                                        </div>
+                                    </React.Fragment>
                                 ))}
                             </div>
-                            
-                            {/* User Rows */}
-                            {users?.map(user => (
-                                <React.Fragment key={user.uid}>
-                                    {/* User Info Cell */}
-                                    <div className="sticky left-0 z-10 flex h-20 items-center gap-3 border-b border-r bg-card p-2">
-                                        <Avatar className="h-10 w-10">
-                                             <AvatarImage src={(user as any).photoURL ?? ""} alt={user.firstName} />
-                                             <AvatarFallback className="text-lg">{getInitials(`${user.firstName} ${user.lastName}`)}</AvatarFallback>
-                                        </Avatar>
-                                        <div className="overflow-hidden">
-                                            <p className="truncate font-medium">{user.firstName} {user.lastName}</p>
-                                            <p className="truncate text-xs text-muted-foreground">{user.email}</p>
-                                        </div>
-                                    </div>
-                                    {/* User Timeline Cell */}
-                                    <div className="relative border-b">
-                                        <div className="grid h-full" style={{ gridTemplateColumns: `repeat(${totalHours}, 1fr)` }}>
-                                            {hours.slice(0,-1).map(hour => <div key={hour} className="h-full border-r"></div>)}
-                                        </div>
-                                        {workLogs?.filter(log => log.userId === user.uid).map(log => renderLog(log))}
-                                    </div>
-                                </React.Fragment>
-                            ))}
-                        </div>
-                    )}
-                     {!isLoading && (!users || users.length === 0) && (
-                        <div className="flex h-40 items-center justify-center text-muted-foreground">
-                            No hay usuarios para mostrar.
-                        </div>
-                    )}
-                </div>
-            </CardContent>
-        </Card>
+                        )}
+                        {!isLoading && (!users || users.length === 0) && (
+                            <div className="flex h-40 items-center justify-center text-muted-foreground">
+                                No hay usuarios para mostrar.
+                            </div>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+            <TimelineLogDetailsDialog 
+                log={selectedLog}
+                userSettings={selectedLog ? allUserSettings[selectedLog.userId] : null}
+                isOpen={!!selectedLog}
+                onOpenChange={(isOpen) => !isOpen && setSelectedLog(null)}
+                onLogUpdate={handleLogUpdate}
+            />
+        </>
     );
 }
 
@@ -391,5 +516,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
 
     

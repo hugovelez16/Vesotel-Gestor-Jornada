@@ -70,18 +70,12 @@ function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkLog | nu
                      <div className="pt-2">
                         <strong>Cálculo de importe:</strong> {log.isGrossCalculation ? 'Bruto' : 'Neto'}
                     </div>
-                    <div className="space-y-2 pt-2">
+                     <div className="space-y-2 pt-2">
                          <div className="flex items-center gap-2">
                             <Switch checked={log.hasCoordination} disabled id="hasCoordination" />
                             <Label htmlFor="hasCoordination">Coordinación</Label>
                         </div>
-                        {log.type === 'tutorial' && (
-                             <div className="flex items-center gap-2">
-                                <Switch checked={log.hasNight} disabled id="hasNight" />
-                                <Label htmlFor="hasNight">Nocturnidad</Label>
-                            </div>
-                        )}
-                        {log.type === 'particular' && (
+                        {(log.type === 'tutorial' || log.type === 'particular') && (
                              <div className="flex items-center gap-2">
                                 <Switch checked={log.hasNight} disabled id="hasNight" />
                                 <Label htmlFor="hasNight">Nocturnidad</Label>
@@ -100,7 +94,7 @@ function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkLog | nu
     );
 }
 
-function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate }: { log: WorkLog, userId: string, userSettings: UserSettings | null, onLogUpdate: () => void }) {
+export function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate, children }: { log: WorkLog, userId: string, userSettings: UserSettings | null, onLogUpdate: () => void, children?: React.ReactNode }) {
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [logType, setLogType] = useState<'particular' | 'tutorial'>(log.type);
@@ -111,13 +105,13 @@ function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate }: { log: Wo
     useEffect(() => {
         if(open) {
             setLogType(log.type);
-            setFormData({ ...log });
+            setFormData({ ...log, userId: log.userId });
         }
     }, [log, open]);
 
     useEffect(() => {
         if (logType === 'particular') {
-            setFormData(prev => ({...prev, hasNight: false, arrivesPrior: false}));
+            setFormData(prev => ({...prev, arrivesPrior: false}));
         }
     }, [logType]);
 
@@ -143,7 +137,7 @@ function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate }: { log: Wo
     };
 
     const handleSubmit = async () => {
-        if (!firestore || !userSettings || !userId) {
+         if (!firestore || !userSettings || !userId) {
             let errorDescription = "No se pudieron cargar los datos necesarios para actualizar. Faltan datos: ";
             const missingData = [];
             if (!firestore) missingData.push("firestore");
@@ -159,7 +153,7 @@ function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate }: { log: Wo
         const updatedLogData: Partial<WorkLog> = { 
             ...formData, 
             type: logType,
-            userId: userId
+            userId: userId // Use the userId prop directly
         };
 
         const { amount, isGross, rateApplied, duration } = calculateEarnings(updatedLogData, userSettings);
@@ -189,9 +183,11 @@ function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate }: { log: Wo
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button variant="ghost" size="icon">
-                    <Edit className="h-4 w-4" />
-                </Button>
+                {children ?? (
+                    <Button variant="ghost" size="icon">
+                        <Edit className="h-4 w-4" />
+                    </Button>
+                )}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
@@ -294,24 +290,16 @@ function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate }: { log: Wo
                                 <Switch id="hasCoordination" name="hasCoordination" checked={formData.hasCoordination} onCheckedChange={(c) => handleSwitchChange('hasCoordination', c)}/>
                                 <Label htmlFor="hasCoordination">Coordinación</Label>
                             </div>
-                             {logType === 'tutorial' && (
-                                <>
-                                    <div className="flex items-center space-x-2">
-                                        <Switch id="hasNight" name="hasNight" checked={formData.hasNight} onCheckedChange={(c) => handleSwitchChange('hasNight', c)}/>
-                                        <Label htmlFor="hasNight">Nocturnidad</Label>
-                                    </div>
-                                    {formData.hasNight && (
-                                        <div className="flex items-center space-x-2 pl-6">
-                                            <Switch id="arrivesPrior" name="arrivesPrior" checked={formData.arrivesPrior} onCheckedChange={(c) => handleSwitchChange('arrivesPrior', c)}/>
-                                            <Label htmlFor="arrivesPrior">Llegada día anterior</Label>
-                                        </div>
-                                    )}
-                                </>
-                            )}
-                             {logType === 'particular' && (
-                                 <div className="flex items-center space-x-2">
+                            {(logType === 'tutorial' || logType === 'particular') && (
+                                <div className="flex items-center space-x-2">
                                     <Switch id="hasNight" name="hasNight" checked={formData.hasNight} onCheckedChange={(c) => handleSwitchChange('hasNight', c)}/>
                                     <Label htmlFor="hasNight">Nocturnidad</Label>
+                                </div>
+                            )}
+                            {logType === 'tutorial' && formData.hasNight && (
+                                <div className="flex items-center space-x-2 pl-6">
+                                    <Switch id="arrivesPrior" name="arrivesPrior" checked={formData.arrivesPrior} onCheckedChange={(c) => handleSwitchChange('arrivesPrior', c)}/>
+                                    <Label htmlFor="arrivesPrior">Llegada día anterior</Label>
                                 </div>
                             )}
                         </div>
@@ -522,3 +510,6 @@ export default function UserRecordsPage({ params }: { params: { userId: string }
     </div>
   );
 }
+
+
+    
