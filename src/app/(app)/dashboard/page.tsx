@@ -91,14 +91,13 @@ function AdminTimeline() {
                         allLogs.push({ id: doc.id, ...doc.data() } as WorkLog);
                     });
 
-                    const tutorialQuery = query(logsCollectionRef, 
-                        where('type', '==', 'tutorial'),
-                        where('startDate', '<=', dateStr)
-                    );
+                    // Simpler query to avoid composite index
+                    const tutorialQuery = query(logsCollectionRef, where('startDate', '<=', dateStr));
                     const tutorialSnapshot = await getDocs(tutorialQuery);
                      tutorialSnapshot.forEach((doc) => {
                         const log = { id: doc.id, ...doc.data() } as WorkLog;
-                        if (log.endDate && log.endDate >= dateStr) {
+                        // Client-side filtering
+                        if (log.type === 'tutorial' && log.endDate && log.endDate >= dateStr) {
                            allLogs.push(log);
                         }
                     });
@@ -248,7 +247,7 @@ function AdminTimeline() {
                         </div>
                     )}
                     {!isLoading && (
-                        <div className="grid grid-cols-[200px_1fr] border-l border-t">
+                        <div className="grid grid-cols-[200px_1fr] border-t">
                             {/* Header Row */}
                             <div className="sticky left-0 z-10 border-b border-r bg-card"></div>
                             <div className="grid" style={{ gridTemplateColumns: `repeat(${totalHours}, 1fr)` }}>
