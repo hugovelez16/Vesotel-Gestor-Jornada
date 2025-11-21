@@ -98,7 +98,7 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [logType, setLogType] = useState<'particular' | 'tutorial'>(log.type);
-    const [formData, setFormData] = useState<Partial<WorkLog>>(log);
+    const [formData, setFormData] = useState<Partial<WorkLog>>({ ...log });
     const firestore = useFirestore();
     const { toast } = useToast();
 
@@ -138,7 +138,7 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
         };
         setIsLoading(true);
 
-        let updatedLogData: Partial<WorkLog> = { ...formData, type: logType };
+        let updatedLogData: Partial<WorkLog> = { ...formData, type: logType, userId: log.userId };
 
         const { amount, isGross, rateApplied, duration } = calculateEarnings(updatedLogData, userSettings);
         updatedLogData = {
@@ -271,7 +271,12 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
                                 <Switch id="hasCoordination" name="hasCoordination" checked={formData.hasCoordination} onCheckedChange={(c) => handleSwitchChange('hasCoordination', c)}/>
                                 <Label htmlFor="hasCoordination">Coordinación</Label>
                             </div>
-                            {logType === 'tutorial' && (
+                            {logType === 'tutorial' ? (
+                                <div className="flex items-center space-x-2">
+                                    <Switch id="hasNight" name="hasNight" checked={formData.hasNight} onCheckedChange={(c) => handleSwitchChange('hasNight', c)}/>
+                                    <Label htmlFor="hasNight">Nocturnidad</Label>
+                                </div>
+                             ) : (
                                 <div className="flex items-center space-x-2">
                                     <Switch id="hasNight" name="hasNight" checked={formData.hasNight} onCheckedChange={(c) => handleSwitchChange('hasNight', c)}/>
                                     <Label htmlFor="hasNight">Nocturnidad</Label>
