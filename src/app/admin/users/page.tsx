@@ -131,9 +131,10 @@ function UserDetailContent({ userId }: { userId: string}) {
   const { toast } = useToast();
 
   const userProfileRef = useMemoFirebase(
-    () => (userId && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users/user_${userId}`) : null,
+    () => (userId && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, `user_${userId}`) : null,
     [firestore, userId]
   );
+  
   const userSettingsRef = useMemoFirebase(
     () => (userId && firestore) ? doc(firestore, `artifacts/${APP_ID}/users/${userId}/settings/config`) : null,
     [firestore, userId]
@@ -146,17 +147,16 @@ function UserDetailContent({ userId }: { userId: string}) {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (profile && settings) {
-      setFormData({
-        ...profile,
-        ...settings,
-      });
-    } else if (profile) {
-      setFormData(profile);
-    } else if (settings) {
-      setFormData(settings);
+    let data: Partial<UserProfile & UserSettings> = {};
+    if (profile) {
+      data = {...data, ...profile};
     }
+    if (settings) {
+      data = {...data, ...settings};
+    }
+    setFormData(data);
   }, [profile, settings]);
+
 
   const isLoading = isLoadingProfile || isLoadingSettings;
   
@@ -182,7 +182,7 @@ function UserDetailContent({ userId }: { userId: string}) {
     const profileData: Partial<UserProfile> = {
       firstName: formData.firstName,
       lastName: formData.lastName,
-      email: profile?.email,
+      email: profile?.email, // email should not change
       uid: userId,
       type: 'user_registry'
     };
@@ -235,10 +235,10 @@ function UserDetailContent({ userId }: { userId: string}) {
     );
   }
 
-  if (!profile || !settings) {
+  if (!profile && !settings) {
     return (
       <div className="flex h-64 w-full items-center justify-center bg-background p-4 text-center">
-        <p className="text-muted-foreground">No se pudieron encontrar todos los datos para el usuario con ID: {userId}. Asegúrate de que tanto el perfil como la configuración existan en la base de datos.</p>
+        <p className="text-muted-foreground">No se pudo encontrar el perfil del usuario con ID: {userId}</p>
       </div>
     );
   }
@@ -595,7 +595,19 @@ export default function AdminUsersPage() {
           if (docSnap.exists()) {
             return { ...docSnap.data(), userId: user.uid } as UserSettings;
           }
-          return null;
+          // Create a default settings object if it doesn't exist
+          const defaultSettings: UserSettings = {
+            userId: user.uid,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            hourlyRate: 0,
+            dailyRate: 0,
+            coordinationRate: 10,
+            nightRate: 30,
+            isGross: false,
+          };
+          // We don't save it here, just use it for the UI. It will be saved when admin edits the user.
+          return defaultSettings;
         })
       });
 
@@ -805,3 +817,5 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+
+    

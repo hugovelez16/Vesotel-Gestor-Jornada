@@ -27,7 +27,7 @@ export default function ProfilePage() {
     );
 
     const profileRef = useMemoFirebase(
-      () => user && firestore ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, `${user.uid}`) : null,
+      () => user && firestore ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, `user_${user.uid}`) : null,
       [firestore, user]
     );
 
@@ -58,7 +58,7 @@ export default function ProfilePage() {
 
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (!user || !firestore) return;
+        if (!user || !firestore || !profileRef) return;
         setIsLoading(true);
 
         const formData = new FormData(e.currentTarget);
@@ -86,11 +86,10 @@ export default function ProfilePage() {
         };
 
         try {
-            const profileDocRef = doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.uid);
             const settingsDocRef = doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`);
             
             await Promise.all([
-              setDoc(profileDocRef, newProfileData, { merge: true }),
+              setDoc(profileRef, newProfileData, { merge: true }),
               setDoc(settingsDocRef, newSettingsData, { merge: true })
             ]);
             
@@ -187,3 +186,5 @@ export default function ProfilePage() {
         </div>
     );
 }
+
+    
