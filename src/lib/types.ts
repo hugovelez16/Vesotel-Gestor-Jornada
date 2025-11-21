@@ -11,6 +11,7 @@ export interface UserProfile {
 }
 
 export interface UserSettings {
+  userId: string;
   hourlyRate: number;
   dailyRate: number;
   coordinationRate: number;

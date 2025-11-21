@@ -26,13 +26,12 @@ import { Switch } from "@/components/ui/switch";
 function UserWorkLogs({ userId }: { userId: string }) {
   const firestore = useFirestore();
 
-  // Correctly order by 'createdAt' timestamp for most recent first.
   const workLogsRef = useMemoFirebase(
     () =>
       userId && firestore
         ? query(
             collection(firestore, `artifacts/${APP_ID}/users/${userId}/work_logs`),
-            orderBy("createdAt", "desc") 
+            orderBy("createdAt", "desc")
           )
         : null,
     [firestore, userId]
@@ -98,7 +97,7 @@ export default function UserDetailPage() {
   const userId = params.userId as string;
 
   const userProfileRef = useMemoFirebase(
-    () => (userId && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, userId) : null,
+    () => (userId && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, `user_${userId}`) : null,
     [firestore, userId]
   );
   const userSettingsRef = useMemoFirebase(

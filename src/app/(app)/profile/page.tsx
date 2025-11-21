@@ -27,7 +27,7 @@ export default function ProfilePage() {
     );
 
     const profileRef = useMemoFirebase(
-      () => user && firestore ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.uid) : null,
+      () => user && firestore ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, `user_${user.uid}`) : null,
       [firestore, user]
     );
 
@@ -66,7 +66,7 @@ export default function ProfilePage() {
         const newLastName = formData.get("lastName") as string;
         
         // Data for settings document
-        const newSettingsData: UserSettings = {
+        const newSettingsData: Partial<UserSettings> = {
             userId: user.uid,
             firstName: newFirstName,
             lastName: newLastName,
@@ -78,7 +78,7 @@ export default function ProfilePage() {
         };
 
         // Data for public profile document
-        const newProfileData: UserProfile = {
+        const newProfileData: Partial<UserProfile> = {
             uid: user.uid,
             email: user.email!,
             firstName: newFirstName,
@@ -88,8 +88,8 @@ export default function ProfilePage() {
         };
 
         try {
-            // Define references with explicit UID
-            const profileDocRef = doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.uid);
+            // Define references with explicit UID and prefix
+            const profileDocRef = doc(firestore, `artifacts/${APP_ID}/public/data/users`, `user_${user.uid}`);
             const settingsDocRef = doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`);
             
             // Atomically write to both documents
