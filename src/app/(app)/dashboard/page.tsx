@@ -56,7 +56,7 @@ function AdminDashboard() {
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <h1 className="text-3xl font-bold tracking-tight">Panel de Administrador</h1>
-                  <p className="text-muted-foreground">Gestiona usuarios y visualiza la actividad de la aplicación.</p>
+                  <p className="text-muted-foreground">Gestiona usuarios y la actividad de la aplicación.</p>
                 </div>
             </div>
 
@@ -74,22 +74,6 @@ function AdminDashboard() {
                     <CardContent>
                          <Button asChild>
                             <Link href="/admin/users">Ir a Gestión de Usuarios</Link>
-                        </Button>
-                    </CardContent>
-                 </Card>
-                 <Card>
-                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-lg font-medium">Registros de Trabajo</CardTitle>
-                        <BookOpen className="h-6 w-6 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <CardDescription>
-                            Visualiza una lista completa de todos los registros de trabajo de todos los usuarios.
-                        </CardDescription>
-                    </CardContent>
-                     <CardContent>
-                         <Button asChild variant="outline">
-                            <Link href="/admin/timeline">Ir a Registros Globales</Link>
                         </Button>
                     </CardContent>
                  </Card>

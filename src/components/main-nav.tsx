@@ -36,7 +36,6 @@ const navItems = [
 ];
 
 const adminNavItems = [
-  { href: "/admin/timeline", label: "Timeline", icon: Clock },
   { href: "/admin/users", label: "Admin", icon: Shield },
 ];
 
@@ -58,7 +57,7 @@ export default function MainNav() {
   const NavLinks = ({ isMobile = false }: { isMobile?: boolean }) => (
     <>
       {[...navItems, ...(isAdmin ? adminNavItems : [])].map((item) => {
-        const isActive = pathname === item.href;
+        const isActive = pathname.startsWith(item.href);
         return (
           <Link
             key={item.href}
