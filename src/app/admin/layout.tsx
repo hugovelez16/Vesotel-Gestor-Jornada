@@ -4,7 +4,9 @@
 import { useUser } from "@/firebase";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Loader2, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { ADMIN_EMAIL } from "@/lib/config";
 
 export default function AdminLayout({
@@ -33,5 +35,18 @@ export default function AdminLayout({
     );
   }
 
-  return <>{children}</>;
+  return (
+    <div className="container mx-auto px-4 py-8 md:py-12 lg:px-8">
+       <header className="mb-8 flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-primary">Panel de Administración</h1>
+          <Button asChild variant="outline">
+            <Link href="/dashboard">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Volver al Dashboard
+            </Link>
+          </Button>
+        </header>
+      <main>{children}</main>
+    </div>
+  );
 }
