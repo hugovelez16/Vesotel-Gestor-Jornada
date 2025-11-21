@@ -5,8 +5,9 @@ import { useState, useMemo } from "react";
 import { useUser } from "@/firebase";
 import { ADMIN_EMAIL } from "@/lib/config";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { PlusCircle, Loader2, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
@@ -17,6 +18,7 @@ import { es } from "date-fns/locale";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 function UserDashboard() {
   return (
@@ -87,14 +89,14 @@ function AdminTimeline({ selectedDate, setSelectedDate }: { selectedDate: Date, 
                  return [{ 
                     id: `1-${user.uid}`, userId: user.uid, description: 'Clase Particular', 
                     startTime: '09:00', endTime: '14:00', type: 'particular', date: format(selectedDate, "yyyy-MM-dd"),
-                    hasCoordination: false, hasNight: false, arrivesPrior: false, amount: 120, isGrossCalculation: false, rateApplied: 15, createdAt: new Date() as any
+                    hasCoordination: false, hasNight: false, arrivesPrior: false, amount: 120, isGrossCalculation: false, rateApplied: 15, createdAt: new Date() as any, duration: 5
                  }];
             }
              if (user.email.includes("gutierrez")) {
                  return [{ 
                     id: `2-${user.uid}`, userId: user.uid, description: 'IES Pablo del Saz', 
                     startTime: '09:00', endTime: '16:00', type: 'tutorial', date: format(selectedDate, "yyyy-MM-dd"),
-                    hasCoordination: false, hasNight: false, arrivesPrior: false, amount: 120, isGrossCalculation: false, rateApplied: 15, createdAt: new Date() as any
+                    hasCoordination: false, hasNight: false, arrivesPrior: false, amount: 120, isGrossCalculation: false, rateApplied: 15, createdAt: new Date() as any, duration: 7
                  }];
             }
             return [];
@@ -114,11 +116,32 @@ function AdminTimeline({ selectedDate, setSelectedDate }: { selectedDate: Date, 
                 <CardTitle className="text-2xl">Cronograma de Trabajo Diario</CardTitle>
                  <div className="flex items-center justify-between pt-2">
                     <div className="flex items-center gap-2">
-                        <span className="font-semibold text-lg">Cronograma Diario</span>
                         <Button variant="ghost" size="icon" onClick={() => setSelectedDate(subDays(selectedDate, 1))}>
                             <ChevronLeft className="h-5 w-5" />
                         </Button>
-                        <span className="text-lg font-medium">{format(selectedDate, "dd/MM/yyyy")}</span>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-[200px] justify-start text-left font-normal",
+                                        !selectedDate && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {selectedDate ? format(selectedDate, "dd 'de' MMMM, yyyy", { locale: es }) : <span>Elige una fecha</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                                <Calendar
+                                    mode="single"
+                                    selected={selectedDate}
+                                    onSelect={(date) => date && setSelectedDate(date)}
+                                    initialFocus
+                                    locale={es}
+                                />
+                            </PopoverContent>
+                        </Popover>
                         <Button variant="ghost" size="icon" onClick={() => setSelectedDate(addDays(selectedDate, 1))}>
                             <ChevronRight className="h-5 w-5" />
                         </Button>
@@ -187,11 +210,13 @@ function AdminTimeline({ selectedDate, setSelectedDate }: { selectedDate: Date, 
 
                                             const startHour = parseInt(log.startTime.split(':')[0]);
                                             const endHour = parseInt(log.endTime.split(':')[0]);
+                                            const duration = log.duration ?? (endHour - startHour);
+
 
                                             if (startHour < 7 || endHour > 23) return null; // Only show events within the visible hours
                                             
                                             const left = `${((startHour - 7) / hourMarkers.length) * 100}%`;
-                                            const width = `${((endHour - startHour) / hourMarkers.length) * 100}%`;
+                                            const width = `${(duration / hourMarkers.length) * 100}%`;
                                             
                                             const bgColor = log.type === 'particular' ? 'bg-blue-500' : 'bg-purple-500';
                                             const textColor = 'text-white';
@@ -228,7 +253,7 @@ function AdminTimeline({ selectedDate, setSelectedDate }: { selectedDate: Date, 
 }
 
 function AdminDashboard() {
-    const [date, setDate] = useState<Date | undefined>(new Date());
+    const [date, setDate] = useState<Date>(new Date());
     
     return (
          <>
@@ -240,7 +265,7 @@ function AdminDashboard() {
             </div>
 
             <div className="grid gap-8 md:grid-cols-1">
-                 <AdminTimeline selectedDate={date || new Date()} setSelectedDate={(d) => setDate(d)} />
+                 <AdminTimeline selectedDate={date} setSelectedDate={(d) => setDate(d)} />
             </div>
         </>
     )
@@ -264,7 +289,5 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
 
     
