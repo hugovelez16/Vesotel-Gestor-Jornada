@@ -81,19 +81,16 @@ function AdminTimeline() {
             const dateStr = format(selectedDate, 'yyyy-MM-dd');
             const allLogs: WorkLog[] = [];
 
-            // Instead of a single collectionGroup query, we iterate through users
-            // and fetch their work_logs individually. This is more security-rule-friendly.
             for (const user of users) {
                 try {
                     const logsCollectionRef = collection(firestore, `artifacts/${APP_ID}/users/${user.uid}/work_logs`);
-                    // Query for 'particular' logs on the exact date
+                    
                     const particularQuery = query(logsCollectionRef, where('date', '==', dateStr));
                     const particularSnapshot = await getDocs(particularQuery);
                     particularSnapshot.forEach((doc) => {
                         allLogs.push({ id: doc.id, ...doc.data() } as WorkLog);
                     });
 
-                    // Query for 'tutorial' logs that encompass the selected date
                     const tutorialQuery = query(logsCollectionRef, 
                         where('type', '==', 'tutorial'),
                         where('startDate', '<=', dateStr)
@@ -101,7 +98,6 @@ function AdminTimeline() {
                     const tutorialSnapshot = await getDocs(tutorialQuery);
                      tutorialSnapshot.forEach((doc) => {
                         const log = { id: doc.id, ...doc.data() } as WorkLog;
-                        // We also need to check the endDate client-side
                         if (log.endDate && log.endDate >= dateStr) {
                            allLogs.push(log);
                         }
@@ -109,7 +105,6 @@ function AdminTimeline() {
 
                 } catch (error) {
                     console.error(`Error fetching work_logs for user ${user.uid}:`, error);
-                    // Silently fail for one user and continue for others
                 }
             }
             setWorkLogs(allLogs);
@@ -147,19 +142,17 @@ function AdminTimeline() {
              const logStart = startOfDay(new Date(log.startDate!));
              const logEnd = startOfDay(new Date(log.endDate!));
              
-             // Check if the selected date is the start date of the tutorial
              const isStartDay = format(selectedDayStart, 'yyyy-MM-dd') === format(logStart, 'yyyy-MM-dd');
              const isEndDay = format(selectedDayStart, 'yyyy-MM-dd') === format(logEnd, 'yyyy-MM-dd');
 
             left = isStartDay ? timeToPosition(log.startTime!) : 0;
             width = isEndDay ? timeToPosition(log.endTime!) - left : 100 - left;
-            if (width < 0) width = 100 - left; // Spans until midnight
+            if (width < 0) width = 100 - left; 
 
-            // Adjust start/end times for display
             startTime = isStartDay ? log.startTime : "00:00";
             endTime = isEndDay ? log.endTime : "23:59";
 
-        } else { // Particular
+        } else {
             left = timeToPosition(log.startTime!);
             const right = timeToPosition(log.endTime!);
             width = right - left;
@@ -191,7 +184,7 @@ function AdminTimeline() {
                     </div>
                      <div className="flex items-center gap-2">
                         <div className="flex shrink-0 items-center gap-1 rounded-md border p-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedDate(addDays(selectedDate, -1))}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setSelectedDate(addDays(selectedDate, -1))}>
                                 <ChevronLeft className="h-4 w-4" />
                             </Button>
                              <Popover>
@@ -199,7 +192,7 @@ function AdminTimeline() {
                                 <Button
                                     variant={"outline"}
                                     className={cn(
-                                    "w-full justify-start text-left font-normal sm:w-[180px]",
+                                    "w-full justify-start text-left font-normal",
                                     !selectedDate && "text-muted-foreground"
                                     )}
                                 >
@@ -216,7 +209,7 @@ function AdminTimeline() {
                                 />
                                 </PopoverContent>
                             </Popover>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedDate(addDays(selectedDate, 1))}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setSelectedDate(addDays(selectedDate, 1))}>
                                 <ChevronRight className="h-4 w-4" />
                             </Button>
                         </div>
@@ -227,51 +220,49 @@ function AdminTimeline() {
                     <div className="flex items-center gap-2"><div className="h-3 w-3 rounded-full bg-green-500"></div>Tutorial</div>
                 </div>
             </CardHeader>
-            <CardContent className="overflow-hidden">
-                <div className="relative overflow-x-auto">
+            <CardContent className="overflow-x-auto">
+                <div className="relative" style={{minWidth: '1200px'}}>
                     {isLoading && (
                          <div className="flex h-64 w-full items-center justify-center">
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
                         </div>
                     )}
                     {!isLoading && (
-                        <div className="grid grid-cols-[200px_minmax(1200px,_1fr)]">
-                            {/* Sticky User Column */}
-                            <div className="sticky left-0 z-10 bg-card">
-                                 <div className="h-10 border-b border-r"></div>
-                                {users?.map(user => (
-                                    <div key={user.uid} className="flex h-20 items-center gap-3 border-b border-r p-2">
+                         <div className="grid" style={{ gridTemplateColumns: '200px 1fr' }}>
+                            {/* Header Ghost Cell */}
+                            <div className="sticky left-0 z-10 h-10 border-b bg-card"></div>
+                            {/* Header Hours */}
+                            <div className="grid grid-cols-24 border-b">
+                                {hours.map(hour => (
+                                    <div key={hour} className="border-r text-center text-xs text-muted-foreground h-10 flex items-center justify-center">
+                                        {String(hour).padStart(2, '0')}:00
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* User Rows */}
+                            {users?.map(user => (
+                                <React.Fragment key={user.uid}>
+                                    {/* User Info Cell */}
+                                    <div className="sticky left-0 z-10 flex h-20 items-center gap-3 border-b bg-card p-2">
                                         <Avatar className="h-10 w-10">
                                              <AvatarImage src={(user as any).photoURL ?? ""} alt={user.firstName} />
-                                             <AvatarFallback>{getInitials(`${user.firstName} ${user.lastName}`)}</AvatarFallback>
+                                             <AvatarFallback className="text-lg">{getInitials(`${user.firstName} ${user.lastName}`)}</AvatarFallback>
                                         </Avatar>
                                         <div className="overflow-hidden">
                                             <p className="truncate font-medium">{user.firstName} {user.lastName}</p>
                                             <p className="truncate text-xs text-muted-foreground">{user.email}</p>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-
-                            {/* Timeline Grid */}
-                            <div className="relative">
-                                <div className="grid h-10 grid-cols-24 border-b">
-                                    {hours.map(hour => (
-                                        <div key={hour} className="border-r text-center text-xs text-muted-foreground">
-                                            {String(hour).padStart(2, '0')}:00
-                                        </div>
-                                    ))}
-                                </div>
-                                {users?.map(user => (
-                                    <div key={user.uid} className="relative h-20 border-b">
+                                    {/* User Timeline Cell */}
+                                    <div className="relative border-b">
                                         <div className="grid h-full grid-cols-24">
                                             {hours.map(hour => <div key={hour} className="h-full border-r"></div>)}
                                         </div>
-                                        
                                         {workLogs?.filter(log => log.userId === user.uid).map(log => renderLog(log))}
                                     </div>
-                                ))}
-                            </div>
+                                </React.Fragment>
+                            ))}
                         </div>
                     )}
                      {!isLoading && (!users || users.length === 0) && (
@@ -320,3 +311,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
