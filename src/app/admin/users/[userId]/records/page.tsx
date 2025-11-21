@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Loader2 } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, use } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
@@ -105,10 +105,10 @@ function UserWorkLogs({ userId }: { userId: string }) {
 
 
 export default function UserRecordsPage({ params }: { params: { userId: string } }) {
-  const { userId } = params;
+  const { userId } = use(params);
   const firestore = useFirestore();
   const userProfileRef = useMemoFirebase(
-    () => (userId && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, `${userId}`) : null,
+    () => (userId && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users/${userId}`) : null,
     [firestore, userId]
   );
   const { data: profile, isLoading: isLoadingProfile } = useDoc<UserProfile>(userProfileRef);

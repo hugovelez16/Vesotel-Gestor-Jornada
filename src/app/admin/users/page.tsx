@@ -131,7 +131,7 @@ function UserDetailContent({ userId }: { userId: string}) {
   const { toast } = useToast();
 
   const userProfileRef = useMemoFirebase(
-    () => (userId && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, userId) : null,
+    () => (userId && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users/user_${userId}`) : null,
     [firestore, userId]
   );
   const userSettingsRef = useMemoFirebase(
