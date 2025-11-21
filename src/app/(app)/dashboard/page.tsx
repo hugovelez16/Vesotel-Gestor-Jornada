@@ -185,7 +185,7 @@ function TimelineLogDetailsDialog({ log, userSettings, isOpen, onOpenChange, onL
                     )}
                     <div><strong>Descripción:</strong> {log.description}</div>
                     <div className="font-bold text-lg text-green-600">Importe: €{log.amount?.toFixed(2) ?? '0.00'}</div>
-                    <div><strong>Tarifa Aplicada:</strong> €{log.rateApplied?.toFixed(2)}/h</div>
+                    <div><strong>Tarifa Aplicada:</strong> €{log.rateApplied?.toFixed(2)}/{log.type === 'tutorial' ? 'día' : 'h'}</div>
                      <div className="pt-2">
                         <strong>Cálculo de importe:</strong> {log.isGrossCalculation ? 'Bruto' : 'Neto'}
                     </div>
@@ -516,6 +516,8 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
 
     
 
