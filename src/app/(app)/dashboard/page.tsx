@@ -197,7 +197,7 @@ function AdminTimeline({ selectedDate, setSelectedDate }: { selectedDate: Date, 
 
                                             if (startHour < 7 || endHour > 23) return null; // Only show events within the visible hours
                                             
-                                            const left = `${((startHour - 7) / hourMarkers.length) * 100}%`;
+                                            const left = `${((startHour - 7) / (hourMarkers.length -1) * (hourMarkers.length-1)/hourMarkers.length * 100)}%`;
                                             const width = `${(duration / hourMarkers.length) * 100}%`;
                                             
                                             const bgColor = log.type === 'particular' ? 'bg-blue-500' : 'bg-purple-500';
