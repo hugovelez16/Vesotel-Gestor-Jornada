@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where } from "firebase/firestore";
+import { collection, query, where, getDocs, collectionGroup } from "firebase/firestore";
 import { APP_ID } from "@/lib/config";
 import type { WorkLog, UserProfile } from "@/lib/types";
 import { format, parse, addDays, subDays, parseISO } from "date-fns";
@@ -78,33 +78,15 @@ function AdminTimeline({ selectedDate, setSelectedDate }: { selectedDate: Date, 
     const usersRef = useMemoFirebase(() => collection(firestore, `artifacts/${APP_ID}/public/data/users`), [firestore]);
     const { data: users, isLoading: isLoadingUsers } = useCollection<UserProfile>(usersRef);
 
-    // MOCK DATA for worklogs - a real implementation would query all logs for the selectedDate
-    // This is complex with Firestore rules and might require data duplication (e.g., a flat work_logs collection)
-    const { data: workLogs, isLoading: isLoadingLogs } = useMemo(() => {
-        if (!users) return { data: [], isLoading: true };
-
-        // Mock data logic
-        const mockData: WorkLog[] = users.flatMap(user => {
-            if (user.email.includes("hugo")) {
-                 return [{ 
-                    id: `1-${user.uid}`, userId: user.uid, description: 'Clase Particular', 
-                    startTime: '09:00', endTime: '14:00', type: 'particular', date: format(selectedDate, "yyyy-MM-dd"),
-                    hasCoordination: false, hasNight: false, arrivesPrior: false, amount: 120, isGrossCalculation: false, rateApplied: 15, createdAt: new Date() as any, duration: 5
-                 }];
-            }
-             if (user.email.includes("gutierrez")) {
-                 return [{ 
-                    id: `2-${user.uid}`, userId: user.uid, description: 'IES Pablo del Saz', 
-                    startTime: '09:00', endTime: '16:00', type: 'tutorial', date: format(selectedDate, "yyyy-MM-dd"),
-                    hasCoordination: false, hasNight: false, arrivesPrior: false, amount: 120, isGrossCalculation: false, rateApplied: 15, createdAt: new Date() as any, duration: 7
-                 }];
-            }
-            return [];
-        });
-        
-        return { data: mockData, isLoading: false };
-
-    }, [users, selectedDate]);
+    const workLogsQuery = useMemoFirebase(() => {
+        const formattedDate = format(selectedDate, "yyyy-MM-dd");
+        return query(
+          collectionGroup(firestore, 'work_logs'), 
+          where('date', '==', formattedDate)
+        );
+    }, [firestore, selectedDate]);
+    
+    const { data: workLogs, isLoading: isLoadingLogs } = useCollection<WorkLog>(workLogsQuery);
     
     const isLoading = isLoadingUsers || isLoadingLogs;
 
@@ -289,5 +271,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
 
     
