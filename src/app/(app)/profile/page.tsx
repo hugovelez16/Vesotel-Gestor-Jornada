@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { APP_ID } from "@/lib/config";
 import { FormEvent, useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
@@ -66,18 +66,23 @@ export default function ProfilePage() {
         };
 
         try {
-            const settingsRef = doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`);
-            // Note: In a real app, you'd have more complete data
-            await setDoc(settingsRef, { ...newSettings, userId: user.uid }, { merge: true });
-            
+            // CRITICAL FIX: Use the user's UID as the document ID for their profile
             const profileRef = doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.uid);
             await setDoc(profileRef, {
                 uid: user.uid,
                 email: user.email,
                 firstName: newSettings.firstName,
                 lastName: newSettings.lastName,
+                lastLogin: serverTimestamp(),
+                type: 'user_registry'
             }, { merge: true });
 
+            const settingsRef = doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`);
+            await setDoc(settingsRef, { 
+                ...newSettings, 
+                userId: user.uid 
+            }, { merge: true });
+            
             toast({
                 title: "Éxito",
                 description: "Tus ajustes se han guardado correctamente.",

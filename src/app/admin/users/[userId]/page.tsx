@@ -20,17 +20,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
+import { Switch } from "@/components/ui/switch";
 
 function UserWorkLogs({ userId }: { userId: string }) {
   const firestore = useFirestore();
 
   const workLogsRef = useMemoFirebase(
     () =>
-      userId
+      userId && firestore
         ? query(
             collection(firestore, `artifacts/${APP_ID}/users/${userId}/work_logs`),
-            orderBy("createdAt", "desc")
+            orderBy("date", "desc") // Order by date field, newest first
           )
         : null,
     [firestore, userId]
@@ -55,7 +56,7 @@ function UserWorkLogs({ userId }: { userId: string }) {
               <TableHead>Tipo</TableHead>
               <TableHead>Fecha</TableHead>
               <TableHead>Descripción</TableHead>
-              <TableHead>Duración/Días</TableHead>
+              <TableHead>Duración</TableHead>
               <TableHead className="text-right">Importe</TableHead>
             </TableRow>
           </TableHeader>
@@ -68,8 +69,8 @@ function UserWorkLogs({ userId }: { userId: string }) {
                   </TableCell>
                   <TableCell>
                     {log.type === 'particular' && log.date 
-                      ? format(new Date(log.date), 'dd/MM/yyyy') 
-                      : (log.startDate && log.endDate ? `${format(new Date(log.startDate), 'dd/MM/yy')} - ${format(new Date(log.endDate), 'dd/MM/yy')}`: '-')}
+                      ? format(parseISO(log.date), 'dd/MM/yyyy') 
+                      : (log.startDate && log.endDate ? `${format(parseISO(log.startDate), 'dd/MM/yy')} - ${format(parseISO(log.endDate), 'dd/MM/yy')}`: '-')}
                   </TableCell>
                   <TableCell className="max-w-xs truncate">{log.description}</TableCell>
                   <TableCell>{log.duration ?? '-'}</TableCell>
@@ -148,12 +149,12 @@ export default function UserDetailPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Tarifas del Usuario</CardTitle>
-          <CardDescription>Tarifas configuradas para el cálculo de sus jornadas.</CardDescription>
+          <CardTitle>Tarifas y Configuración</CardTitle>
+          <CardDescription>Tarifas y ajustes de cálculo para este usuario.</CardDescription>
         </CardHeader>
         <CardContent>
           {settings ? (
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               <div className="space-y-2">
                 <Label>Tarifa por Hora (€)</Label>
                 <Input value={settings.hourlyRate} disabled />
@@ -162,13 +163,9 @@ export default function UserDetailPage() {
                 <Label>Tarifa por Día (€)</Label>
                 <Input value={settings.dailyRate} disabled />
               </div>
-              <div className="space-y-2">
-                <Label>Plus Coordinación (€)</Label>
-                <Input value={settings.coordinationRate} disabled />
-              </div>
-              <div className="space-y-2">
-                <Label>Plus Nocturnidad (€)</Label>
-                <Input value={settings.nightRate} disabled />
+              <div className="flex items-center space-x-2 pt-6">
+                <Switch id="isGross" checked={settings.isGross} disabled />
+                <Label htmlFor="isGross" className="whitespace-nowrap">Cálculo en Bruto (con IRPF)</Label>
               </div>
             </div>
           ) : (
