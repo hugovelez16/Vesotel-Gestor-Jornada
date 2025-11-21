@@ -3,16 +3,29 @@
 
 import { useUser, useAuth as useFirebaseAuth } from "@/firebase";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VesotelLogo } from "@/components/icons";
-import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { signInWithRedirect, GoogleAuthProvider, getRedirectResult } from "firebase/auth";
+import { Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const { user, isUserLoading } = useUser();
   const auth = useFirebaseAuth();
   const router = useRouter();
+  const [isSigningIn, setIsSigningIn] = useState(false);
+
+  // Handle the redirect result from Google
+  useEffect(() => {
+    if (auth) {
+      getRedirectResult(auth).catch((error) => {
+        // Handle Errors here.
+        console.error("Error getting redirect result:", error);
+        setIsSigningIn(false);
+      });
+    }
+  }, [auth]);
 
   useEffect(() => {
     if (!isUserLoading && user) {
@@ -21,12 +34,10 @@ export default function LoginPage() {
   }, [user, isUserLoading, router]);
 
   const signInWithGoogle = async () => {
+    setIsSigningIn(true);
     const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Error signing in with Google:", error);
-    }
+    // We use signInWithRedirect instead of signInWithPopup
+    await signInWithRedirect(auth, provider);
   };
 
 
@@ -39,6 +50,8 @@ export default function LoginPage() {
     </svg>
   );
 
+  const isLoading = isUserLoading || isSigningIn;
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md">
@@ -50,12 +63,22 @@ export default function LoginPage() {
           <Button
             className="w-full"
             onClick={signInWithGoogle}
-            disabled={isUserLoading}
+            disabled={isLoading}
           >
-            {isUserLoading ? "Cargando..." : <> <GoogleIcon /> Iniciar sesión con Google </>}
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Iniciando sesión...
+              </>
+            ) : (
+              <>
+                <GoogleIcon /> Iniciar sesión con Google
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>
     </div>
   );
 }
+
