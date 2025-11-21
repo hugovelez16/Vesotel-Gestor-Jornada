@@ -1,0 +1,370 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user profile within the Vesotel Jornada application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user entity."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The first name of the user."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The last name of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the user.",
+          "format": "email"
+        },
+        "uid": {
+          "type": "string",
+          "description": "Firebase UID of the user."
+        },
+        "lastLogin": {
+          "type": "string",
+          "description": "Timestamp of the user's last login.",
+          "format": "date-time"
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of the user ('user_registry')."
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "email",
+        "uid",
+        "lastLogin",
+        "type"
+      ]
+    },
+    "WorkLog": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "WorkLog",
+      "type": "object",
+      "description": "Represents a work log entry for a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the work log entry."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N WorkLog)"
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of work log ('particular' or 'tutorial')."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date of the work log (YYYY-MM-DD). Used for 'particular' type."
+        },
+        "startDate": {
+          "type": "string",
+          "description": "The start date of the work log (YYYY-MM-DD). Used for 'tutorial' type."
+        },
+        "endDate": {
+          "type": "string",
+          "description": "The end date of the work log (YYYY-MM-DD). Used for 'tutorial' type."
+        },
+        "startTime": {
+          "type": "string",
+          "description": "The start time of the work log (HH:MM)."
+        },
+        "endTime": {
+          "type": "string",
+          "description": "The end time of the work log (HH:MM)."
+        },
+        "duration": {
+          "type": "number",
+          "description": "The duration of the work log in hours."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The total amount earned for the work log."
+        },
+        "unit": {
+          "type": "string",
+          "description": "The unit of measurement for the amount (e.g., 'EUR')."
+        },
+        "rateApplied": {
+          "type": "number",
+          "description": "The hourly rate that was applied when creating the log."
+        },
+        "isGrossCalculation": {
+          "type": "boolean",
+          "description": "Indicates whether a gross calculation (IRPF reduction) was applied."
+        },
+        "hasCoordination": {
+          "type": "boolean",
+          "description": "Indicates whether coordination rate applies to the work log."
+        },
+        "hasNight": {
+          "type": "boolean",
+          "description": "Indicates whether night rate applies to the work log."
+        },
+        "arrivesPrior": {
+          "type": "boolean",
+          "description": "Indicates whether the user arrived prior (used for tutorial calculations)."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the work log."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "type",
+        "startTime",
+        "endTime",
+        "duration",
+        "amount",
+        "unit",
+        "rateApplied",
+        "isGrossCalculation",
+        "hasCoordination",
+        "hasNight",
+        "arrivesPrior",
+        "description"
+      ]
+    },
+    "Config": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Config",
+      "type": "object",
+      "description": "Represents the configuration settings for a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the config entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:1 Config)"
+        },
+        "hourlyRate": {
+          "type": "number",
+          "description": "The user's hourly rate."
+        },
+        "dailyRate": {
+          "type": "number",
+          "description": "The user's daily rate."
+        },
+        "coordinationRate": {
+          "type": "number",
+          "description": "The user's coordination rate."
+        },
+        "nightRate": {
+          "type": "number",
+          "description": "The user's night rate."
+        },
+        "isGross": {
+          "type": "boolean",
+          "description": "Indicates whether the user is subject to gross calculation (IRPF)."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The user's first name (duplicated for convenience)."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The user's last name (duplicated for convenience)."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "hourlyRate",
+        "dailyRate",
+        "coordinationRate",
+        "nightRate",
+        "isGross",
+        "firstName",
+        "lastName"
+      ]
+    },
+    "AccessRequest": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AccessRequest",
+      "type": "object",
+      "description": "Represents a request for access to the application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the access request."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the user requesting access.",
+          "format": "email"
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The first name of the user requesting access."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The last name of the user requesting access."
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the access request ('pending', 'approved', 'rejected')."
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "firstName",
+        "lastName",
+        "status"
+      ]
+    },
+    "AllowedUser": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AllowedUser",
+      "type": "object",
+      "description": "Represents a user who is allowed access to the application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the allowed user."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the allowed user.",
+          "format": "email"
+        }
+      },
+      "required": [
+        "id",
+        "email"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "artifacts/{appId}/public/data/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile information. Keyed by Firebase UID.",
+          "params": [
+            {
+              "name": "appId",
+              "description": "The unique ID of the application instance."
+            },
+            {
+              "name": "userId",
+              "description": "The Firebase UID of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "artifacts/{appId}/users/{userId}/work_logs/{workLogId}",
+        "definition": {
+          "entityName": "WorkLog",
+          "schema": {
+            "$ref": "#/backend/entities/WorkLog"
+          },
+          "description": "Stores work log entries for each user. Organized under the user's path. Keyed by workLogId.",
+          "params": [
+            {
+              "name": "appId",
+              "description": "The unique ID of the application instance."
+            },
+            {
+              "name": "userId",
+              "description": "The Firebase UID of the user."
+            },
+            {
+              "name": "workLogId",
+              "description": "Unique identifier for the work log entry."
+            }
+          ]
+        }
+      },
+      {
+        "path": "artifacts/{appId}/users/{userId}/settings/config",
+        "definition": {
+          "entityName": "Config",
+          "schema": {
+            "$ref": "#/backend/entities/Config"
+          },
+          "description": "Stores user-specific configuration settings. One config document per user.",
+          "params": [
+            {
+              "name": "appId",
+              "description": "The unique ID of the application instance."
+            },
+            {
+              "name": "userId",
+              "description": "The Firebase UID of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "artifacts/{appId}/public/data/access_requests/{accessRequestId}",
+        "definition": {
+          "entityName": "AccessRequest",
+          "schema": {
+            "$ref": "#/backend/entities/AccessRequest"
+          },
+          "description": "Stores access requests from users. Allows admins to manage access to the application. Keyed by accessRequestId.",
+          "params": [
+            {
+              "name": "appId",
+              "description": "The unique ID of the application instance."
+            },
+            {
+              "name": "accessRequestId",
+              "description": "Unique identifier for the access request."
+            }
+          ]
+        }
+      },
+      {
+        "path": "artifacts/{appId}/public/data/allowed_users/{allowedUserId}",
+        "definition": {
+          "entityName": "AllowedUser",
+          "schema": {
+            "$ref": "#/backend/entities/AllowedUser"
+          },
+          "description": "Stores a list of allowed users based on their email. Used for authentication.",
+          "params": [
+            {
+              "name": "appId",
+              "description": "The unique ID of the application instance."
+            },
+            {
+              "name": "allowedUserId",
+              "description": "Unique identifier for the allowed user."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to ensure security, scalability, and efficient data retrieval for the Vesotel Jornada application. The structure prioritizes authorization independence to avoid hierarchical `get()` calls in security rules, making the rules simpler and more robust. It follows the principle of Structural Segregation, ensuring all documents in a collection have the same security requirements.\n\n1.  **User Data:** User profiles are stored in `artifacts/{appId}/public/data/users/{userId}`. This path-based ownership simplifies security rules and ensures that only the user can access their profile data. The user's `uid` is used as the document ID.\n2.  **Work Logs:** Work logs are stored in `artifacts/{appId}/users/{userId}/work_logs/{workLogId}`. This hierarchical structure ensures that work logs are owned by the user and simplifies access control.  There are no specific rules for access other than the owner.\n3.  **Configuration:** User-specific configuration settings are stored in `artifacts/{appId}/users/{userId}/settings/config`. This ensures that configuration data is directly associated with the user.\n4.  **Access Requests:** Access requests are stored in `artifacts/{appId}/public/data/access_requests/{accessRequestId}`. This segregates access request data from user data and allows for separate security rules. Only admins can manage these requests.\n5.  **Allowed Users:** Allowed users are stored in `artifacts/{appId}/public/data/allowed_users/{allowedUserId}`. The existence of a document in this collection grants access to the application. This is how authentication is done.\n\n**Authorization Independence (Denormalization):**\nSince we depend exclusively on `request.auth.uid` and path-based ownership, no denormalization is required in this structure. All security rules are based on the user's `uid` and the document path.\n\n**QAPs (Rules are not Filters):**\nThe structure supports secure `list` operations. For example:\n*   Listing work logs is secure because work logs are stored under the user's path (`artifacts/{appId}/users/{userId}/work_logs`). Rules can allow listing only if `request.auth.uid == userId`.\n*   Access request listing can be limited to admins by checking against the `roles_admin/{uid}` collection (existence over content).\n\nThis structure avoids `get()` calls in security rules and relies on the user's `uid` and the document path for authorization. It enables secure `list` operations and supports atomic operations (transactions/batches)."
+  }
+}
