@@ -147,16 +147,15 @@ function UserDetailContent({ userId }: { userId: string}) {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-      let data: Partial<UserProfile & UserSettings> = {};
-      // This ensures we only set form data once both profile and settings are loaded
-      if (profile && settings) {
-          data = { ...profile, ...settings };
-          setFormData(data);
-      } else if(profile) {
-        setFormData(prev => ({...prev, ...profile}));
-      } else if (settings) {
-        setFormData(prev => ({...prev, ...settings}));
-      }
+    let data: Partial<UserProfile & UserSettings> = {};
+    if (profile && settings) {
+        data = { ...profile, ...settings };
+        setFormData(data);
+    } else if(profile && !settings) {
+      setFormData(prev => ({...prev, ...profile}));
+    } else if (settings && !profile) {
+      setFormData(prev => ({...prev, ...settings}));
+    }
   }, [profile, settings]);
 
 
@@ -237,7 +236,7 @@ function UserDetailContent({ userId }: { userId: string}) {
     );
   }
 
-  if (!profile && !settings) {
+  if (!profile && !settings && !isLoading) {
     return (
       <div className="flex h-64 w-full items-center justify-center bg-background p-4 text-center">
         <p className="text-muted-foreground">No se pudo encontrar el perfil del usuario con ID: {userId}</p>
@@ -293,16 +292,16 @@ function UserDetailContent({ userId }: { userId: string}) {
                   <Input id="dailyRate" name="dailyRate" type="number" step="0.01" value={formData.dailyRate ?? 0} onChange={handleInputChange} />
                 </div>
                  <div className="space-y-2">
-                  <Label htmlFor="coordinationRate">Plus Coordinación (€)</Label>
+                  <Label htmlFor="coordinationRate">Coordinación (€)</Label>
                   <Input id="coordinationRate" name="coordinationRate" type="number" step="0.01" value={formData.coordinationRate ?? 10} onChange={handleInputChange} />
                 </div>
                  <div className="space-y-2">
-                  <Label htmlFor="nightRate">Plus Nocturnidad (€)</Label>
+                  <Label htmlFor="nightRate">Nocturnidad (€)</Label>
                   <Input id="nightRate" name="nightRate" type="number" step="0.01" value={formData.nightRate ?? 30} onChange={handleInputChange} />
                 </div>
                 <div className="flex items-center space-x-2 pt-6 sm:col-span-2">
                   <Switch id="isGross" name="isGross" checked={formData.isGross ?? false} onCheckedChange={(checked) => setFormData(p => ({...p, isGross: checked}))} />
-                  <Label htmlFor="isGross" className="whitespace-nowrap">Cálculo en Bruto (con IRPF)</Label>
+                  <Label htmlFor="isGross" className="whitespace-nowrap">Calcular ingresos en bruto</Label>
                 </div>
               </div>
           </CardContent>
@@ -394,6 +393,7 @@ function CreateWorkLogDialog({ users, allUserSettings }: { users: UserProfile[],
         ...formData,
         userId: selectedUserId,
         type: logType,
+        hasNight: logType === 'particular' ? false : formData.hasNight, // Ensure hasNight is false for particular
         createdAt: serverTimestamp() as any,
     };
 
@@ -546,18 +546,12 @@ function CreateWorkLogDialog({ users, allUserSettings }: { users: UserProfile[],
                       <div className="col-span-3 space-y-2">
                         <div className="flex items-center space-x-2">
                             <Switch id="hasCoordination" name="hasCoordination" checked={formData.hasCoordination} onCheckedChange={(c) => handleSwitchChange('hasCoordination', c)}/>
-                            <Label htmlFor="hasCoordination">Plus Coordinación</Label>
+                            <Label htmlFor="hasCoordination">Coordinación</Label>
                         </div>
-                        {logType === 'particular' && (
-                           <div className="flex items-center space-x-2">
-                                <Switch id="hasNight" name="hasNight" checked={formData.hasNight} onCheckedChange={(c) => handleSwitchChange('hasNight', c)}/>
-                                <Label htmlFor="hasNight">Plus Nocturnidad</Label>
-                            </div>
-                        )}
                         {logType === 'tutorial' && (
                            <div className="flex items-center space-x-2">
                                 <Switch id="arrivesPrior" name="arrivesPrior" checked={formData.arrivesPrior} onCheckedChange={(c) => handleSwitchChange('arrivesPrior', c)}/>
-                                <Label htmlFor="arrivesPrior">Llegada Día Anterior</Label>
+                                <Label htmlFor="arrivesPrior">Llegada Día Anterior (afecta a Nocturnidad)</Label>
                             </div>
                         )}
                       </div>

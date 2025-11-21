@@ -162,16 +162,16 @@ export default function ProfilePage() {
                             <Input id="dailyRate" name="dailyRate" type="number" step="0.01" defaultValue={settings?.dailyRate ?? 0} />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="coordinationRate">Plus Coordinación (€)</Label>
+                            <Label htmlFor="coordinationRate">Coordinación (€)</Label>
                             <Input id="coordinationRate" name="coordinationRate" type="number" step="0.01" defaultValue={settings?.coordinationRate ?? 10} />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="nightRate">Plus Nocturnidad (€)</Label>
+                            <Label htmlFor="nightRate">Nocturnidad (€)</Label>
                             <Input id="nightRate" name="nightRate" type="number" step="0.01" defaultValue={settings?.nightRate ?? 30} />
                         </div>
                         <div className="flex items-center space-x-2 md:col-span-2">
                              <Switch id="isGross" name="isGross" defaultChecked={settings?.isGross ?? false} />
-                            <Label htmlFor="isGross">Aplicar reducción IRPF (cálculo en bruto)</Label>
+                            <Label htmlFor="isGross">Calcular ingresos en bruto (precios netos si está desactivado)</Label>
                         </div>
                     </CardContent>
                 </Card>
@@ -186,5 +186,3 @@ export default function ProfilePage() {
         </div>
     );
 }
-
-    

@@ -55,14 +55,13 @@ function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkLog | nu
                     <div><strong>Descripción:</strong> {log.description}</div>
                     <div className="font-bold text-lg text-green-600">Importe: €{log.amount?.toFixed(2) ?? '0.00'}</div>
                     <div><strong>Tarifa Aplicada:</strong> €{log.rateApplied?.toFixed(2)}/h</div>
+                     <div className="pt-2">
+                        <strong>Cálculo de importe:</strong> {log.isGrossCalculation ? 'Bruto' : 'Neto'}
+                    </div>
                     <div className="space-y-2 pt-2">
                         <div className="flex items-center gap-2">
-                            <Switch checked={log.isGrossCalculation} disabled id="isGross" />
-                            <Label htmlFor="isGross">Cálculo en Bruto (IRPF)</Label>
-                        </div>
-                        <div className="flex items-center gap-2">
                             <Switch checked={log.hasCoordination} disabled id="hasCoordination" />
-                            <Label htmlFor="hasCoordination">Plus Coordinación</Label>
+                            <Label htmlFor="hasCoordination">Coordinación</Label>
                         </div>
                         {log.type === 'tutorial' && (
                             <div className="flex items-center gap-2">

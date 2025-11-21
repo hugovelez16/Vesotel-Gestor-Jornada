@@ -67,21 +67,14 @@ function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkLog | nu
                     <div><strong>Descripción:</strong> {log.description}</div>
                     <div className="font-bold text-lg text-green-600">Importe: €{log.amount?.toFixed(2) ?? '0.00'}</div>
                     <div><strong>Tarifa Aplicada:</strong> €{log.rateApplied?.toFixed(2)}/h</div>
+                     <div className="pt-2">
+                        <strong>Cálculo:</strong> {log.isGrossCalculation ? 'Bruto' : 'Neto'}
+                    </div>
                     <div className="space-y-2 pt-2">
-                        <div className="flex items-center gap-2">
-                            <Switch checked={log.isGrossCalculation} disabled id="isGross" />
-                            <Label htmlFor="isGross">Cálculo en Bruto (IRPF)</Label>
-                        </div>
-                        <div className="flex items-center gap-2">
+                         <div className="flex items-center gap-2">
                             <Switch checked={log.hasCoordination} disabled id="hasCoordination" />
-                            <Label htmlFor="hasCoordination">Plus Coordinación</Label>
+                            <Label htmlFor="hasCoordination">Coordinación</Label>
                         </div>
-                         {log.type === 'particular' && (
-                            <div className="flex items-center gap-2">
-                                <Switch checked={log.hasNight} disabled id="hasNight" />
-                                <Label htmlFor="hasNight">Plus Nocturnidad</Label>
-                            </div>
-                        )}
                         {log.type === 'tutorial' && (
                             <div className="flex items-center gap-2">
                                 <Switch checked={log.arrivesPrior} disabled id="arrivesPrior" />
@@ -125,7 +118,7 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
         };
         setIsLoading(true);
 
-        let updatedLogData: Partial<WorkLog> = { ...formData, type: logType };
+        let updatedLogData: Partial<WorkLog> = { ...formData, type: logType, hasNight: logType === 'particular' ? false : formData.hasNight };
 
         const { amount, isGross, rateApplied, duration } = calculateEarnings(updatedLogData, userSettings);
         updatedLogData = {
@@ -256,18 +249,12 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
                         <div className="col-span-3 space-y-2">
                             <div className="flex items-center space-x-2">
                                 <Switch id="hasCoordination" name="hasCoordination" checked={formData.hasCoordination} onCheckedChange={(c) => handleSwitchChange('hasCoordination', c)}/>
-                                <Label htmlFor="hasCoordination">Plus Coordinación</Label>
+                                <Label htmlFor="hasCoordination">Coordinación</Label>
                             </div>
-                             {logType === 'particular' && (
-                                <div className="flex items-center space-x-2">
-                                    <Switch id="hasNight" name="hasNight" checked={formData.hasNight} onCheckedChange={(c) => handleSwitchChange('hasNight', c)}/>
-                                    <Label htmlFor="hasNight">Plus Nocturnidad</Label>
-                                </div>
-                            )}
                             {logType === 'tutorial' && (
                                 <div className="flex items-center space-x-2">
                                     <Switch id="arrivesPrior" name="arrivesPrior" checked={formData.arrivesPrior} onCheckedChange={(c) => handleSwitchChange('arrivesPrior', c)}/>
-                                    <Label htmlFor="arrivesPrior">Llegada Día Anterior</Label>
+                                    <Label htmlFor="arrivesPrior">Llegada Día Anterior (afecta a Nocturnidad)</Label>
                                 </div>
                             )}
                         </div>
