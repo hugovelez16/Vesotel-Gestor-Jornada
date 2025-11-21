@@ -342,6 +342,26 @@ function CreateWorkLogDialog({ users, allUserSettings }: { users: UserProfile[],
   });
   const firestore = useFirestore();
   const { toast } = useToast();
+  
+  const resetForm = () => {
+      setFormData({ hasCoordination: false, hasNight: false, arrivesPrior: false });
+      setSelectedUserId(undefined);
+      setLogType('particular');
+  };
+
+  useEffect(() => {
+    // Reset dependent switches when logType changes
+    if (logType === 'particular') {
+        setFormData(prev => ({...prev, hasNight: false, arrivesPrior: false}));
+    }
+  }, [logType]);
+
+  useEffect(() => {
+    // Reset arrivesPrior if hasNight is turned off
+    if (!formData.hasNight) {
+        setFormData(prev => ({...prev, arrivesPrior: false}));
+    }
+  }, [formData.hasNight]);
 
   const handleDateChange = (field: 'date' | 'startDate' | 'endDate', value: Date | undefined) => {
     if (value) {
@@ -393,7 +413,6 @@ function CreateWorkLogDialog({ users, allUserSettings }: { users: UserProfile[],
         ...formData,
         userId: selectedUserId,
         type: logType,
-        hasNight: logType === 'particular' ? false : formData.hasNight, // Ensure hasNight is false for particular
         createdAt: serverTimestamp() as any,
     };
 
@@ -408,10 +427,7 @@ function CreateWorkLogDialog({ users, allUserSettings }: { users: UserProfile[],
         await addDoc(logCollectionRef, logData);
         toast({title: "Éxito", description: "Registro de trabajo añadido correctamente."});
         setOpen(false);
-        // Reset form
-        setFormData({ hasCoordination: false, hasNight: false, arrivesPrior: false });
-        setSelectedUserId(undefined);
-        setLogType('particular');
+        resetForm();
 
     } catch (error: any) {
         console.error("Error creating work log:", error);
@@ -422,7 +438,7 @@ function CreateWorkLogDialog({ users, allUserSettings }: { users: UserProfile[],
   }
 
   return (
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if(!isOpen) resetForm(); }}>
           <DialogTrigger asChild>
                <Button>
                   <PlusCircle className="mr-2 h-4 w-4" />
@@ -457,7 +473,7 @@ function CreateWorkLogDialog({ users, allUserSettings }: { users: UserProfile[],
 
                   <div className="grid grid-cols-4 items-center gap-4">
                       <Label className="text-right">Tipo</Label>
-                      <RadioGroup defaultValue="particular" className="col-span-3 flex gap-4" onValueChange={(value: 'particular' | 'tutorial') => setLogType(value)}>
+                      <RadioGroup value={logType} defaultValue="particular" className="col-span-3 flex gap-4" onValueChange={(value: 'particular' | 'tutorial') => setLogType(value)}>
                           <div className="flex items-center space-x-2">
                               <RadioGroupItem value="particular" id="r1" />
                               <Label htmlFor="r1">Particular</Label>
@@ -480,7 +496,7 @@ function CreateWorkLogDialog({ users, allUserSettings }: { users: UserProfile[],
                                             className={cn("col-span-3 justify-start text-left font-normal", !formData.date && "text-muted-foreground")}
                                         >
                                             <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {formData.date ? format(new Date(formData.date), "PPP") : <span>Elige una fecha</span>}
+                                            {formData.date ? format(new Date(formData.date), "PPP", { locale: es }) : <span>Elige una fecha</span>}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
@@ -508,7 +524,7 @@ function CreateWorkLogDialog({ users, allUserSettings }: { users: UserProfile[],
                                             className={cn("col-span-3 justify-start text-left font-normal", !formData.startDate && "text-muted-foreground")}
                                         >
                                             <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {formData.startDate ? format(new Date(formData.startDate), "PPP") : <span>Elige una fecha</span>}
+                                            {formData.startDate ? format(new Date(formData.startDate), "PPP", { locale: es }) : <span>Elige una fecha</span>}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
@@ -525,7 +541,7 @@ function CreateWorkLogDialog({ users, allUserSettings }: { users: UserProfile[],
                                             className={cn("col-span-3 justify-start text-left font-normal", !formData.endDate && "text-muted-foreground")}
                                         >
                                             <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {formData.endDate ? format(new Date(formData.endDate), "PPP") : <span>Elige una fecha</span>}
+                                            {formData.endDate ? format(new Date(formData.endDate), "PPP", { locale: es }) : <span>Elige una fecha</span>}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
@@ -550,8 +566,14 @@ function CreateWorkLogDialog({ users, allUserSettings }: { users: UserProfile[],
                         </div>
                         {logType === 'tutorial' && (
                            <div className="flex items-center space-x-2">
+                                <Switch id="hasNight" name="hasNight" checked={formData.hasNight} onCheckedChange={(c) => handleSwitchChange('hasNight', c)}/>
+                                <Label htmlFor="hasNight">Nocturnidad</Label>
+                            </div>
+                        )}
+                        {logType === 'tutorial' && formData.hasNight && (
+                            <div className="flex items-center space-x-2 pl-6">
                                 <Switch id="arrivesPrior" name="arrivesPrior" checked={formData.arrivesPrior} onCheckedChange={(c) => handleSwitchChange('arrivesPrior', c)}/>
-                                <Label htmlFor="arrivesPrior">Llegada Día Anterior (afecta a Nocturnidad)</Label>
+                                <Label htmlFor="arrivesPrior">Llegada Día Anterior</Label>
                             </div>
                         )}
                       </div>

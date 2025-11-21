@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Loader2, ArrowLeft, Edit, Trash2 } from "lucide-react";
-import React, { use, useState, useMemo } from "react";
+import React, { use, useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
@@ -76,6 +76,12 @@ function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkLog | nu
                             <Label htmlFor="hasCoordination">Coordinación</Label>
                         </div>
                         {log.type === 'tutorial' && (
+                             <div className="flex items-center gap-2">
+                                <Switch checked={log.hasNight} disabled id="hasNight" />
+                                <Label htmlFor="hasNight">Nocturnidad</Label>
+                            </div>
+                        )}
+                        {log.type === 'tutorial' && log.hasNight && (
                             <div className="flex items-center gap-2">
                                 <Switch checked={log.arrivesPrior} disabled id="arrivesPrior" />
                                 <Label htmlFor="arrivesPrior">Llegada Día Anterior</Label>
@@ -95,6 +101,20 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
     const [formData, setFormData] = useState<Partial<WorkLog>>(log);
     const firestore = useFirestore();
     const { toast } = useToast();
+
+    useEffect(() => {
+        // Reset dependent switches when logType changes
+        if (logType === 'particular') {
+            setFormData(prev => ({...prev, hasNight: false, arrivesPrior: false}));
+        }
+    }, [logType]);
+
+    useEffect(() => {
+        // Reset arrivesPrior if hasNight is turned off
+        if (!formData.hasNight) {
+            setFormData(prev => ({...prev, arrivesPrior: false}));
+        }
+    }, [formData.hasNight]);
 
     const handleDateChange = (field: 'date' | 'startDate' | 'endDate', value: Date | undefined) => {
         if (value) {
@@ -118,7 +138,7 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
         };
         setIsLoading(true);
 
-        let updatedLogData: Partial<WorkLog> = { ...formData, type: logType, hasNight: logType === 'particular' ? false : formData.hasNight };
+        let updatedLogData: Partial<WorkLog> = { ...formData, type: logType };
 
         const { amount, isGross, rateApplied, duration } = calculateEarnings(updatedLogData, userSettings);
         updatedLogData = {
@@ -253,8 +273,14 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
                             </div>
                             {logType === 'tutorial' && (
                                 <div className="flex items-center space-x-2">
+                                    <Switch id="hasNight" name="hasNight" checked={formData.hasNight} onCheckedChange={(c) => handleSwitchChange('hasNight', c)}/>
+                                    <Label htmlFor="hasNight">Nocturnidad</Label>
+                                </div>
+                            )}
+                            {logType === 'tutorial' && formData.hasNight && (
+                                <div className="flex items-center space-x-2 pl-6">
                                     <Switch id="arrivesPrior" name="arrivesPrior" checked={formData.arrivesPrior} onCheckedChange={(c) => handleSwitchChange('arrivesPrior', c)}/>
-                                    <Label htmlFor="arrivesPrior">Llegada Día Anterior (afecta a Nocturnidad)</Label>
+                                    <Label htmlFor="arrivesPrior">Llegada Día Anterior</Label>
                                 </div>
                             )}
                         </div>
