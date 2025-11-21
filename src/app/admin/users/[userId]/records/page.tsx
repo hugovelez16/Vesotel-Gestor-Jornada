@@ -75,7 +75,12 @@ function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkLog | nu
                             <Switch checked={log.hasCoordination} disabled id="hasCoordination" />
                             <Label htmlFor="hasCoordination">Coordinación</Label>
                         </div>
-                        {log.type === 'tutorial' && (
+                        {log.type === 'tutorial' ? (
+                             <div className="flex items-center gap-2">
+                                <Switch checked={log.hasNight} disabled id="hasNight" />
+                                <Label htmlFor="hasNight">Nocturnidad</Label>
+                            </div>
+                        ) : (
                              <div className="flex items-center gap-2">
                                 <Switch checked={log.hasNight} disabled id="hasNight" />
                                 <Label htmlFor="hasNight">Nocturnidad</Label>
@@ -103,8 +108,10 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
     const { toast } = useToast();
 
     useEffect(() => {
-        setLogType(log.type);
-        setFormData({ ...log, userId: log.userId });
+        if(open) {
+            setLogType(log.type);
+            setFormData({ ...log, userId: log.userId });
+        }
     }, [log, open]);
 
     useEffect(() => {
@@ -136,7 +143,14 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
 
     const handleSubmit = async () => {
         if (!firestore || !userSettings || !log.userId) {
-            toast({ title: "Error", description: "No se pudieron cargar los datos necesarios para actualizar.", variant: "destructive" });
+            let errorDescription = "No se pudieron cargar los datos necesarios para actualizar. Faltan datos: ";
+            const missingData = [];
+            if (!firestore) missingData.push("firestore");
+            if (!userSettings) missingData.push("userSettings");
+            if (!log.userId) missingData.push("log.userId");
+            errorDescription += missingData.join(', ');
+
+            toast({ title: "Error", description: errorDescription, variant: "destructive" });
             return;
         };
         setIsLoading(true);
@@ -279,7 +293,7 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
                                 <Switch id="hasCoordination" name="hasCoordination" checked={formData.hasCoordination} onCheckedChange={(c) => handleSwitchChange('hasCoordination', c)}/>
                                 <Label htmlFor="hasCoordination">Coordinación</Label>
                             </div>
-                             {logType === 'tutorial' && (
+                             {logType === 'tutorial' ? (
                                 <>
                                     <div className="flex items-center space-x-2">
                                         <Switch id="hasNight" name="hasNight" checked={formData.hasNight} onCheckedChange={(c) => handleSwitchChange('hasNight', c)}/>
@@ -292,6 +306,11 @@ function EditWorkLogDialog({ log, userSettings, onLogUpdate }: { log: WorkLog, u
                                         </div>
                                     )}
                                 </>
+                            ) : (
+                                 <div className="flex items-center space-x-2">
+                                    <Switch id="hasNight" name="hasNight" checked={formData.hasNight} onCheckedChange={(c) => handleSwitchChange('hasNight', c)}/>
+                                    <Label htmlFor="hasNight">Nocturnidad</Label>
+                                </div>
                             )}
                         </div>
                     </div>
