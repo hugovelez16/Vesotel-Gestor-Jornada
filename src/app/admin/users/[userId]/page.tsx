@@ -104,7 +104,9 @@ function UserWorkLogs({ userId }: { userId: string }) {
           </DialogHeader>
           {selectedLog && (
             <div className="space-y-4 text-sm">
-                <p><strong>Tipo:</strong> <Badge variant={selectedLog.type === 'particular' ? 'secondary' : 'default'}>{selectedLog.type}</Badge></p>
+                <div className="flex items-center gap-2">
+                    <strong>Tipo:</strong> <Badge variant={selectedLog.type === 'particular' ? 'secondary' : 'default'}>{selectedLog.type}</Badge>
+                </div>
                 {selectedLog.type === 'particular' ? (
                     <>
                         <p><strong>Fecha:</strong> {selectedLog.date ? format(parseISO(selectedLog.date), 'PPP') : '-'}</p>
@@ -336,4 +338,3 @@ export default function UserDetailPage() {
     </form>
   );
 }
-
