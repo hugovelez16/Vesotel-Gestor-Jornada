@@ -37,6 +37,7 @@ const navItems = [
 
 const adminNavItems = [
   { href: "/admin/users", label: "Admin", icon: Shield },
+  { href: "/admin/timeline", label: "Timeline", icon: Clock },
 ];
 
 export default function MainNav() {
@@ -147,3 +148,5 @@ export default function MainNav() {
     </>
   );
 }
+
+    
