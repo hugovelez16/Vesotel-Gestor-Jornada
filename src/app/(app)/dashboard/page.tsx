@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { ADMIN_EMAIL, APP_ID } from "@/lib/config";
 import { Button } from "@/components/ui/button";
@@ -192,7 +192,7 @@ function AdminTimeline() {
                                 <Button
                                     variant={"outline"}
                                     className={cn(
-                                    "w-full justify-start text-left font-normal",
+                                    "w-full shrink justify-start text-left font-normal",
                                     !selectedDate && "text-muted-foreground"
                                     )}
                                 >
