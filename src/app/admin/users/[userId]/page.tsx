@@ -1,16 +1,94 @@
 
 "use client";
 
-import { useFirestore, useDoc, useMemoFirebase } from "@/firebase";
-import { doc } from "firebase/firestore";
+import { useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
+import { doc, collection, query, orderBy } from "firebase/firestore";
 import { APP_ID } from "@/lib/config";
-import type { UserProfile, UserSettings } from "@/lib/types";
+import type { UserProfile, UserSettings, WorkLog } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useParams } from "next/navigation";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
+
+function UserWorkLogs({ userId }: { userId: string }) {
+  const firestore = useFirestore();
+
+  const workLogsRef = useMemoFirebase(
+    () =>
+      userId
+        ? query(
+            collection(firestore, `artifacts/${APP_ID}/users/${userId}/work_logs`),
+            orderBy("createdAt", "desc")
+          )
+        : null,
+    [firestore, userId]
+  );
+
+  const { data: workLogs, isLoading } = useCollection<WorkLog>(workLogsRef);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+        <span>Cargando registros...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Tipo</TableHead>
+              <TableHead>Fecha</TableHead>
+              <TableHead>Descripción</TableHead>
+              <TableHead>Duración/Días</TableHead>
+              <TableHead className="text-right">Importe</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {workLogs && workLogs.length > 0 ? (
+              workLogs.map((log) => (
+                <TableRow key={log.id}>
+                  <TableCell>
+                    <Badge variant={log.type === 'particular' ? 'secondary' : 'default'}>{log.type}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    {log.type === 'particular' && log.date 
+                      ? format(new Date(log.date), 'dd/MM/yyyy') 
+                      : (log.startDate && log.endDate ? `${format(new Date(log.startDate), 'dd/MM/yy')} - ${format(new Date(log.endDate), 'dd/MM/yy')}`: '-')}
+                  </TableCell>
+                  <TableCell className="max-w-xs truncate">{log.description}</TableCell>
+                  <TableCell>{log.duration ?? '-'}</TableCell>
+                  <TableCell className="text-right">€{log.amount?.toFixed(2) ?? '0.00'}</TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-muted-foreground py-12">
+                  Este usuario no tiene registros de trabajo.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+  );
+}
+
 
 export default function UserDetailPage() {
   const firestore = useFirestore();
@@ -50,7 +128,7 @@ export default function UserDetailPage() {
   if (!profile) {
     return (
       <div className="flex h-64 w-full items-center justify-center bg-background">
-        <p className="text-muted-foreground">No se pudo encontrar el perfil del usuario.</p>
+        <p className="text-muted-foreground">No se pudo encontrar el perfil del usuario con ID: {userId}</p>
       </div>
     );
   }
@@ -99,13 +177,13 @@ export default function UserDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Placeholder for user's work logs */}
       <Card>
         <CardHeader>
           <CardTitle>Registros de Jornada</CardTitle>
+           <CardDescription>Lista de todos los registros de trabajo de este usuario.</CardDescription>
         </CardHeader>
         <CardContent>
-           <p className="text-muted-foreground">La lista de registros de jornada del usuario se mostrará aquí.</p>
+           <UserWorkLogs userId={userId} />
         </CardContent>
       </Card>
     </div>

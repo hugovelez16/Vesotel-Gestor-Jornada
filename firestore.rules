@@ -14,7 +14,7 @@
  * 2. `/public/data`: A tree for collections that are either publicly readable or have different access patterns. This includes user profiles (`users`), access requests, and the list of allowed users.
  *
  * @section Key Security Decisions
- * - User Enumeration is Disallowed: The top-level `/users` collection cannot be listed, preventing clients from discovering all users of the application.
+ * - User Enumeration is Disallowed: The top-level `/users` collection cannot be listed by regular users, preventing clients from discovering all users of the application. Admins, however, can list users.
  * - Strict Ownership: A user can only access (`get`, `list`, `create`, `update`, `delete`) documents that are explicitly under their own user ID path (`/users/{userId}/...`) or their specific user profile document.
  * - Admin-Managed Collections: Collections like `allowed_users` and `access_requests` are client-immutable. They are intended to be managed by a backend process or admin SDK, ensuring the integrity of the access control list.
  * - Self-Creation of Profiles: A newly authenticated user is permitted to create their own user profile document (`/public/data/users/{userId}`) and their own settings document.
@@ -46,7 +46,7 @@ service cloud.firestore {
     function isAdmin() {
       // The admin UID is hardcoded for this specific rule.
       // In a more complex app, this might check a custom claim or a role document.
-      return request.auth.uid == '1LCUlku13ghVTsjQLDglkj387cf2';
+      return isSignedIn() && request.auth.uid == '1LCUlku13ghVTsjQLDglkj387cf2';
     }
     
     /**
@@ -112,7 +112,7 @@ service cloud.firestore {
     match /artifacts/{appId} {
        /**
        * @description This is a special rule to allow admins to perform a collection group query
-       * across all `work_logs` collections. This is necessary for the admin timeline view.
+       * across all `work_logs` collections. This is necessary for admin views.
        * @path /artifacts/{appId}/users/{userId}/work_logs/{workLogId} -> captured by {path=**}
        * @allow (list) Admin can list any work log via a collection group query.
        * @principle Provides a specific, narrow permission for a powerful query type needed by a specific feature.
@@ -159,7 +159,7 @@ service cloud.firestore {
           allow get: if isAdmin();
           allow list: if isAdmin();
           allow create: if true;
-          update: if isAdmin();
+          allow update: if isAdmin();
           allow delete: if isAdmin();
         }
 
@@ -195,16 +195,16 @@ service cloud.firestore {
 
         /**
          * @description Secures user-specific work log entries. A user has full control over their own logs.
-         * An admin can read any user's logs for the timeline view, but this is handled by the collectionGroup rule.
+         * An admin can also read/list any user's logs for detail views.
          * @path /artifacts/{appId}/users/{userId}/work_logs/{workLogId}
          * @allow (create, list) User 'user123' creating or listing work logs under `/users/user123/work_logs`.
-         * @allow (get) User 'user123' reading their own work log.
+         * @allow (get) User 'user123' reading their own work log. Admin can also read it.
          * @deny (get) User 'user456' trying to read a work log under `/users/user123/work_logs`.
-         * @principle Enforces document ownership for all operations. Admin read access is handled by the group query rule.
+         * @principle Enforces document ownership for all operations, with read access exception for admins.
          */
         match /work_logs/{workLogId} {
-          allow get: if isOwner(userId);
-          allow list: if isOwner(userId);
+          allow get: if isOwner(userId) || isAdmin();
+          allow list: if isOwner(userId) || isAdmin();
           allow create: if isCreatingOwnSubDoc(userId);
           allow update: if isUpdatingOwnSubDoc(userId);
           allow delete: if isExistingOwner(userId);
@@ -230,5 +230,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
