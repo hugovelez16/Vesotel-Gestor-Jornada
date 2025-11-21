@@ -72,6 +72,8 @@ export default function ProfilePage() {
             
             const profileRef = doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.uid);
             await setDoc(profileRef, {
+                uid: user.uid,
+                email: user.email,
                 firstName: newSettings.firstName,
                 lastName: newSettings.lastName,
             }, { merge: true });
