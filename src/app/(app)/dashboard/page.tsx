@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import Link from "next/link";
 import type { UserProfile, WorkLog } from "@/lib/types";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { addDays, format, startOfDay } from 'date-fns';
+import { addDays, format, startOfDay, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -84,21 +84,19 @@ function AdminTimeline() {
             for (const user of users) {
                 try {
                     const logsCollectionRef = collection(firestore, `artifacts/${APP_ID}/users/${user.uid}/work_logs`);
-                    
-                    const particularQuery = query(logsCollectionRef, where('date', '==', dateStr));
-                    const particularSnapshot = await getDocs(particularQuery);
-                    particularSnapshot.forEach((doc) => {
-                        allLogs.push({ id: doc.id, ...doc.data() } as WorkLog);
-                    });
+                    const q = query(logsCollectionRef);
+                    const querySnapshot = await getDocs(q);
 
-                    // Simpler query to avoid composite index
-                    const tutorialQuery = query(logsCollectionRef, where('startDate', '<=', dateStr));
-                    const tutorialSnapshot = await getDocs(tutorialQuery);
-                     tutorialSnapshot.forEach((doc) => {
+                    querySnapshot.forEach((doc) => {
                         const log = { id: doc.id, ...doc.data() } as WorkLog;
-                        // Client-side filtering
-                        if (log.type === 'tutorial' && log.endDate && log.endDate >= dateStr) {
-                           allLogs.push(log);
+                        
+                        if (log.type === 'particular' && log.date === dateStr) {
+                             allLogs.push(log);
+                        } else if (log.type === 'tutorial' && log.startDate && log.endDate) {
+                            // Client-side filtering for tutorials
+                            if (dateStr >= log.startDate && dateStr <= log.endDate) {
+                                allLogs.push(log);
+                            }
                         }
                     });
 
@@ -123,54 +121,53 @@ function AdminTimeline() {
 
     const START_HOUR = 8;
     const END_HOUR = 19;
-    const totalHours = END_HOUR - START_HOUR + 1;
-    const hours = Array.from({ length: totalHours }, (_, i) => i + START_HOUR);
+    const totalHours = END_HOUR - START_HOUR;
+    const hours = Array.from({ length: totalHours + 1 }, (_, i) => i + START_HOUR);
 
     const timeToPosition = (time: string) => {
         if (!time) return { left: 0, width: 0 };
         const [h, m] = time.split(':').map(Number);
         const minutes = (h * 60) + m;
         const startMinutes = START_HOUR * 60;
-        const endMinutes = END_HOUR * 60;
-
-        if (minutes < startMinutes || minutes > endMinutes) return { left: 0, width: 0 };
-
-        const totalMinutes = (END_HOUR - START_HOUR) * 60;
+        
+        // Total minutes in our visible timeline
+        const totalMinutes = totalHours * 60;
         const position = ((minutes - startMinutes) / totalMinutes) * 100;
-        return position;
+
+        return Math.max(0, Math.min(100, position)); // Clamp between 0 and 100
     };
     
     const renderLog = (log: WorkLog) => {
         const isTutorial = log.type === 'tutorial';
         let left = 0;
         let width = 0;
-
-        const selectedDayStr = format(startOfDay(selectedDate), 'yyyy-MM-dd');
+        
+        const selectedDayStr = format(selectedDate, 'yyyy-MM-dd');
 
         if (isTutorial) {
-             const logStartDay = log.startDate ? format(startOfDay(new Date(log.startDate)), 'yyyy-MM-dd') : '';
-             const logEndDay = log.endDate ? format(startOfDay(new Date(log.endDate)), 'yyyy-MM-dd') : '';
+             const logStartDay = log.startDate ? format(parseISO(log.startDate), 'yyyy-MM-dd') : '';
+             const logEndDay = log.endDate ? format(parseISO(log.endDate), 'yyyy-MM-dd') : '';
 
              const startsToday = logStartDay === selectedDayStr;
              const endsToday = logEndDay === selectedDayStr;
              const isWithin = selectedDayStr > logStartDay && selectedDayStr < logEndDay;
              
              if(startsToday) {
-                const startPos = timeToPosition(log.startTime!);
-                const endPos = endsToday ? timeToPosition(log.endTime!) : 100;
+                const startPos = log.startTime ? timeToPosition(log.startTime) : 0;
+                const endPos = endsToday && log.endTime ? timeToPosition(log.endTime) : 100;
                 left = startPos;
                 width = endPos - startPos;
              } else if (endsToday) {
-                const endPos = timeToPosition(log.endTime!);
+                const endPos = log.endTime ? timeToPosition(log.endTime) : 100;
                 left = 0;
                 width = endPos;
              } else if(isWithin) {
                 left = 0;
                 width = 100;
              }
-        } else {
-            const startPos = timeToPosition(log.startTime!);
-            const endPos = timeToPosition(log.endTime!);
+        } else { // Particular
+            const startPos = log.startTime ? timeToPosition(log.startTime) : 0;
+            const endPos = log.endTime ? timeToPosition(log.endTime) : 0;
             left = startPos;
             width = endPos - startPos;
         }
@@ -185,7 +182,7 @@ function AdminTimeline() {
                     isTutorial ? "bg-green-500/80" : "bg-blue-500/80"
                 )}
                 style={{ left: `${left}%`, width: `${width}%` }}
-                title={`${log.description} (${log.startTime} - ${log.endTime})`}
+                title={`${log.description} (${log.startTime ?? ''} - ${log.endTime ?? ''})`}
             >
                 <p className="truncate text-xs font-semibold">{log.description}</p>
                 <p className="truncate text-xs">{log.startTime} - {log.endTime}</p>
@@ -202,7 +199,7 @@ function AdminTimeline() {
                         <CardDescription>Visualización de los turnos de trabajo del día.</CardDescription>
                     </div>
                      <div className="flex items-center gap-2">
-                        <div className="flex shrink-0 items-center gap-1 rounded-md border p-1">
+                        <div className="flex shrink-0 items-center gap-1 rounded-md border bg-card p-1">
                             <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setSelectedDate(addDays(selectedDate, -1))}>
                                 <ChevronLeft className="h-4 w-4" />
                             </Button>
@@ -251,7 +248,7 @@ function AdminTimeline() {
                             {/* Header Row */}
                             <div className="sticky left-0 z-10 border-b border-r bg-card"></div>
                             <div className="grid" style={{ gridTemplateColumns: `repeat(${totalHours}, 1fr)` }}>
-                                {hours.map(hour => (
+                                {hours.slice(0,-1).map(hour => (
                                     <div key={hour} className="border-b border-r p-2 text-center text-xs text-muted-foreground h-10 flex items-center justify-center">
                                         {String(hour).padStart(2, '0')}:00
                                     </div>
@@ -275,7 +272,7 @@ function AdminTimeline() {
                                     {/* User Timeline Cell */}
                                     <div className="relative border-b">
                                         <div className="grid h-full" style={{ gridTemplateColumns: `repeat(${totalHours}, 1fr)` }}>
-                                            {hours.map(hour => <div key={hour} className="h-full border-r"></div>)}
+                                            {hours.slice(0,-1).map(hour => <div key={hour} className="h-full border-r"></div>)}
                                         </div>
                                         {workLogs?.filter(log => log.userId === user.uid).map(log => renderLog(log))}
                                     </div>
