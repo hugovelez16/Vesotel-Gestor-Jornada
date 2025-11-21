@@ -26,12 +26,13 @@ import { Switch } from "@/components/ui/switch";
 function UserWorkLogs({ userId }: { userId: string }) {
   const firestore = useFirestore();
 
+  // Correctly order by 'createdAt' timestamp for most recent first.
   const workLogsRef = useMemoFirebase(
     () =>
       userId && firestore
         ? query(
             collection(firestore, `artifacts/${APP_ID}/users/${userId}/work_logs`),
-            orderBy("date", "desc") // Order by date field, newest first
+            orderBy("createdAt", "desc") 
           )
         : null,
     [firestore, userId]
@@ -97,11 +98,11 @@ export default function UserDetailPage() {
   const userId = params.userId as string;
 
   const userProfileRef = useMemoFirebase(
-    () => userId ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, userId) : null,
+    () => (userId && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, userId) : null,
     [firestore, userId]
   );
   const userSettingsRef = useMemoFirebase(
-    () => userId ? doc(firestore, `artifacts/${APP_ID}/users/${userId}/settings/config`) : null,
+    () => (userId && firestore) ? doc(firestore, `artifacts/${APP_ID}/users/${userId}/settings/config`) : null,
     [firestore, userId]
   );
 
@@ -162,6 +163,14 @@ export default function UserDetailPage() {
               <div className="space-y-2">
                 <Label>Tarifa por Día (€)</Label>
                 <Input value={settings.dailyRate} disabled />
+              </div>
+               <div className="space-y-2">
+                <Label>Plus Coordinación (€)</Label>
+                <Input value={settings.coordinationRate ?? 10} disabled />
+              </div>
+               <div className="space-y-2">
+                <Label>Plus Nocturnidad (€)</Label>
+                <Input value={settings.nightRate ?? 30} disabled />
               </div>
               <div className="flex items-center space-x-2 pt-6">
                 <Switch id="isGross" checked={settings.isGross} disabled />
