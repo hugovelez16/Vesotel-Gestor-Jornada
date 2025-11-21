@@ -2,7 +2,7 @@
 "use client";
 
 import { useFirestore, useMemoFirebase, useCollection, useUser } from "@/firebase";
-import { collection, doc, updateDoc, deleteDoc, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, query } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -293,7 +293,7 @@ export default function AdminUsersPage() {
   const { data: users, isLoading: isLoadingUsers } = useCollection<UserProfile>(usersRef);
   
   // Fetch all settings to calculate earnings when admin creates a log
-  const settingsCollectionRef = useMemoFirebase(() => collection(firestore, `artifacts/${APP_ID}/users`), [firestore]);
+  const settingsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `artifacts/${APP_ID}/users`) : null, [firestore]);
   const { data: userSettings, isLoading: isLoadingSettings } = useCollection<UserSettings>(
       settingsCollectionRef ? query(collection(settingsCollectionRef as any, 'settings')) : null as any
   );
