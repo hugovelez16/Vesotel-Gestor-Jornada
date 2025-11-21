@@ -2,7 +2,7 @@
 "use client";
 
 import { useFirestore, useMemoFirebase, useCollection, useUser } from "@/firebase";
-import { collection, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, query } from "firebase/firestore";
+import { collection, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, query, getDocs } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,9 +12,9 @@ import { APP_ID, ADMIN_EMAIL } from "@/lib/config";
 import { useToast } from "@/hooks/use-toast";
 import type { AccessRequest, UserProfile, WorkLog, UserSettings } from "@/lib/types";
 import { Loader2, CheckCircle, XCircle, PlusCircle, Users } from "lucide-react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import Link from "next/link";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
 import { calculateEarnings } from "@/lib/calculations";
 
 
-function CreateWorkLogDialog({ users, userSettings }: { users: UserProfile[], userSettings: (UserSettings & {id:string})[] }) {
+function CreateWorkLogDialog({ users, allUserSettings }: { users: UserProfile[], allUserSettings: UserSettings[] }) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [logType, setLogType] = useState<'particular' | 'tutorial'>('particular');
@@ -72,14 +72,13 @@ function CreateWorkLogDialog({ users, userSettings }: { users: UserProfile[], us
     };
     setIsLoading(true);
 
-    const userSetting = userSettings.find(s => s.userId === selectedUserId);
+    const userSetting = allUserSettings.find(s => s.userId === selectedUserId);
     if(!userSetting) {
         toast({title: "Error", description: "No se encontraron los ajustes para este usuario.", variant: "destructive"});
         setIsLoading(false);
         return;
     }
 
-    // Basic Validations
     if (!formData.description) {
         toast({title: "Error", description: "La descripción es obligatoria.", variant: "destructive"});
         setIsLoading(false);
@@ -196,7 +195,7 @@ function CreateWorkLogDialog({ users, userSettings }: { users: UserProfile[], us
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={formData.date ? new Date(formData.date) : undefined} onSelect={(d) => handleDateChange('date', d)} initialFocus />
+                                        <Calendar mode="single" selected={formData.date ? parseISO(formData.date) : undefined} onSelect={(d) => handleDateChange('date', d)} initialFocus />
                                     </PopoverContent>
                                 </Popover>
                           </div>
@@ -224,7 +223,7 @@ function CreateWorkLogDialog({ users, userSettings }: { users: UserProfile[], us
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={formData.startDate ? new Date(formData.startDate) : undefined} onSelect={(d) => handleDateChange('startDate', d)} initialFocus />
+                                        <Calendar mode="single" selected={formData.startDate ? parseISO(formData.startDate) : undefined} onSelect={(d) => handleDateChange('startDate', d)} initialFocus />
                                     </PopoverContent>
                                 </Popover>
                           </div>
@@ -241,7 +240,7 @@ function CreateWorkLogDialog({ users, userSettings }: { users: UserProfile[], us
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={formData.endDate ? new Date(formData.endDate) : undefined} onSelect={(d) => handleDateChange('endDate', d)} initialFocus />
+                                        <Calendar mode="single" selected={formData.endDate ? parseISO(formData.endDate) : undefined} onSelect={(d) => handleDateChange('endDate', d)} initialFocus />
                                     </PopoverContent>
                                 </Popover>
                           </div>
@@ -284,6 +283,8 @@ function CreateWorkLogDialog({ users, userSettings }: { users: UserProfile[], us
 export default function AdminUsersPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
+  
+  const [allUserSettings, setAllUserSettings] = useState<UserSettings[]>([]);
 
   const requestsRef = useMemoFirebase(() => firestore ? collection(firestore, `artifacts/${APP_ID}/public/data/access_requests`) : null, [firestore]);
   const usersRef = useMemoFirebase(() => firestore ? collection(firestore, `artifacts/${APP_ID}/public/data/users`) : null, [firestore]);
@@ -291,9 +292,29 @@ export default function AdminUsersPage() {
 
   const { data: requests, isLoading: isLoadingRequests } = useCollection<AccessRequest>(requestsRef);
   const { data: users, isLoading: isLoadingUsers } = useCollection<UserProfile>(usersRef);
-  
-  // This hook is a placeholder and doesn't run a query. It's needed for the dialog.
-  const { data: userSettings, isLoading: isLoadingSettings } = useCollection<UserSettings>(null);
+
+    useEffect(() => {
+    if (!firestore || !users) return;
+
+    const fetchAllSettings = async () => {
+      const settingsPromises = users.map(user => {
+        const settingsRef = doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`);
+        return getDocs(query(collection(doc(firestore, `artifacts/${APP_ID}/users/${user.uid}`), 'settings')))
+            .then(snapshot => {
+                if (!snapshot.empty) {
+                    const settingsDoc = snapshot.docs[0];
+                    return { ...settingsDoc.data(), userId: user.uid } as UserSettings;
+                }
+                return null;
+            });
+      });
+
+      const settingsResults = await Promise.all(settingsPromises);
+      setAllUserSettings(settingsResults.filter(s => s !== null) as UserSettings[]);
+    };
+
+    fetchAllSettings();
+  }, [firestore, users]);
 
   const pendingRequests = requests?.filter(req => req.status === 'pending');
 
@@ -350,6 +371,8 @@ export default function AdminUsersPage() {
     return <>{data.map(renderRow)}</>;
   };
 
+  const isLoading = isLoadingUsers || isLoadingRequests || allUserSettings.length === 0 && (users && users.length > 0);
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -357,8 +380,8 @@ export default function AdminUsersPage() {
             <h1 className="text-3xl font-bold tracking-tight">Gestión de Usuarios</h1>
             <p className="text-muted-foreground">Administra usuarios y solicitudes de acceso.</p>
         </div>
-        {users && userSettings && (
-            <CreateWorkLogDialog users={users} userSettings={userSettings as any} />
+        {users && allUserSettings && (
+            <CreateWorkLogDialog users={users} allUserSettings={allUserSettings} />
         )}
       </div>
 
@@ -382,33 +405,37 @@ export default function AdminUsersPage() {
                     <TableHead>Nombre</TableHead>
                     <TableHead>Email</TableHead>
                      <TableHead>Rol</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                     {renderTableBody(
-                        isLoadingUsers,
+                        isLoading,
                         users,
                         (user) => (
-                            <TableRow key={user.uid}>
-                                <TableCell>{user.firstName} {user.lastName}</TableCell>
-                                <TableCell>{user.email}</TableCell>
+                           <TableRow key={user.uid} className="cursor-pointer">
                                 <TableCell>
+                                    <Link href={`/admin/users/${user.uid}`} className="hover:underline">
+                                        {user.firstName} {user.lastName}
+                                    </Link>
+                                </TableCell>
+                                <TableCell>
+                                    <Link href={`/admin/users/${user.uid}`} className="hover:underline">
+                                        {user.email}
+                                    </Link>
+                                </TableCell>
+                                <TableCell>
+                                  <Link href={`/admin/users/${user.uid}`}>
                                     {user.email === ADMIN_EMAIL ? (
                                         <Badge variant="destructive">Admin</Badge>
                                     ) : (
                                         <Badge variant="secondary">Usuario</Badge>
                                     )}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <Button asChild variant="outline" size="sm">
-                                      <Link href={`/admin/users/${user.uid}`}>Ver Detalles</Link>
-                                    </Button>
+                                  </Link>
                                 </TableCell>
                             </TableRow>
                         ),
                         "No hay usuarios para mostrar.",
-                        4
+                        3
                     )}
                 </TableBody>
               </Table>

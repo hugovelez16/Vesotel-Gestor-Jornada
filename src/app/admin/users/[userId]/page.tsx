@@ -22,6 +22,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from "date-fns";
+import { es } from 'date-fns/locale';
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -64,7 +65,7 @@ function UserWorkLogs({ userId }: { userId: string }) {
 
   return (
     <>
-      <div className="rounded-lg border">
+      <div className="rounded-lg border bg-card overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -118,20 +119,20 @@ function UserWorkLogs({ userId }: { userId: string }) {
                 </div>
                 {selectedLog.type === 'particular' ? (
                     <>
-                        <p><strong>Fecha:</strong> {selectedLog.date ? format(parseISO(selectedLog.date), 'PPP', { locale: es }) : '-'}</p>
-                        <p><strong>Hora Inicio:</strong> {selectedLog.startTime ?? '-'}</p>
-                        <p><strong>Hora Fin:</strong> {selectedLog.endTime ?? '-'}</p>
-                        <p><strong>Duración:</strong> {selectedLog.duration ?? '-'} horas</p>
+                        <div><strong>Fecha:</strong> {selectedLog.date ? format(parseISO(selectedLog.date), 'PPP', { locale: es }) : '-'}</div>
+                        <div><strong>Hora Inicio:</strong> {selectedLog.startTime ?? '-'}</div>
+                        <div><strong>Hora Fin:</strong> {selectedLog.endTime ?? '-'}</div>
+                        <div><strong>Duración:</strong> {selectedLog.duration ?? '-'} horas</div>
                     </>
                 ) : (
                     <>
-                        <p><strong>Fecha Inicio:</strong> {selectedLog.startDate ? format(parseISO(selectedLog.startDate), 'PPP', { locale: es }) : '-'}</p>
-                        <p><strong>Fecha Fin:</strong> {selectedLog.endDate ? format(parseISO(selectedLog.endDate), 'PPP', { locale: es }) : '-'}</p>
+                        <div><strong>Fecha Inicio:</strong> {selectedLog.startDate ? format(parseISO(selectedLog.startDate), 'PPP', { locale: es }) : '-'}</div>
+                        <div><strong>Fecha Fin:</strong> {selectedLog.endDate ? format(parseISO(selectedLog.endDate), 'PPP', { locale: es }) : '-'}</div>
                     </>
                 )}
-                <p><strong>Descripción:</strong> {selectedLog.description}</p>
-                <p><strong>Importe:</strong> €{selectedLog.amount?.toFixed(2) ?? '0.00'}</p>
-                <p><strong>Tarifa Aplicada:</strong> €{selectedLog.rateApplied?.toFixed(2)}/h</p>
+                <div><strong>Descripción:</strong> {selectedLog.description}</div>
+                <div className="font-bold text-lg text-green-600">Importe: €{selectedLog.amount?.toFixed(2) ?? '0.00'}</div>
+                <div><strong>Tarifa Aplicada:</strong> €{selectedLog.rateApplied?.toFixed(2)}/h</div>
                 <div className="space-y-2 pt-2">
                     <div className="flex items-center gap-2">
                         <Switch checked={selectedLog.isGrossCalculation} disabled id="isGross" />
@@ -164,7 +165,7 @@ export default function UserDetailPage() {
   const userId = params.userId as string;
 
   const userProfileRef = useMemoFirebase(
-    () => (userId && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, `user_${userId}`) : null,
+    () => (userId && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, userId) : null,
     [firestore, userId]
   );
   const userSettingsRef = useMemoFirebase(
@@ -219,6 +220,8 @@ export default function UserDetailPage() {
       coordinationRate: formData.coordinationRate,
       nightRate: formData.nightRate,
       isGross: formData.isGross,
+      firstName: formData.firstName,
+      lastName: formData.lastName,
     };
     
     try {

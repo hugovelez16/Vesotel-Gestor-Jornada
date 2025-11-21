@@ -27,7 +27,7 @@ export default function ProfilePage() {
     );
 
     const profileRef = useMemoFirebase(
-      () => user && firestore ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, `user_${user.uid}`) : null,
+      () => user && firestore ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, `${user.uid}`) : null,
       [firestore, user]
     );
 
@@ -65,7 +65,6 @@ export default function ProfilePage() {
         const newFirstName = formData.get("firstName") as string;
         const newLastName = formData.get("lastName") as string;
         
-        // Data for settings document
         const newSettingsData: Partial<UserSettings> = {
             userId: user.uid,
             firstName: newFirstName,
@@ -77,22 +76,19 @@ export default function ProfilePage() {
             isGross: formData.get("isGross") === "on",
         };
 
-        // Data for public profile document
         const newProfileData: Partial<UserProfile> = {
             uid: user.uid,
             email: user.email!,
             firstName: newFirstName,
             lastName: newLastName,
-            lastLogin: serverTimestamp() as any, // Cast to any to satisfy type until server write
+            lastLogin: serverTimestamp() as any,
             type: 'user_registry'
         };
 
         try {
-            // Define references with explicit UID and prefix
-            const profileDocRef = doc(firestore, `artifacts/${APP_ID}/public/data/users`, `user_${user.uid}`);
+            const profileDocRef = doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.uid);
             const settingsDocRef = doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`);
             
-            // Atomically write to both documents
             await Promise.all([
               setDoc(profileDocRef, newProfileData, { merge: true }),
               setDoc(settingsDocRef, newSettingsData, { merge: true })
