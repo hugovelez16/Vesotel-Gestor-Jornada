@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useFirestore, useMemoFirebase, useCollection, useUser, useDoc } from "@/firebase";
+import { useFirestore, useMemoFirebase, useCollection, useDoc } from "@/firebase";
 import { collection, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, getDocs, getDoc, setDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,8 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { APP_ID, ADMIN_EMAIL } from "@/lib/config";
 import { useToast } from "@/hooks/use-toast";
 import type { AccessRequest, UserProfile, WorkLog, UserSettings } from "@/lib/types";
-import { Loader2, CheckCircle, XCircle, PlusCircle, Users, ChevronDown, ChevronUp } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { Loader2, CheckCircle, XCircle, PlusCircle, Users, ChevronDown, ChevronUp, History, Briefcase, Clock, Calendar as CalendarIconLucide } from "lucide-react";
+import { format, parseISO, getMonth, getYear } from "date-fns";
 import React, { useState, useEffect, useMemo, FormEvent } from 'react';
 import {
   Dialog,
@@ -36,146 +36,113 @@ import { calculateEarnings } from "@/lib/calculations";
 import { es } from 'date-fns/locale';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Link from 'next/link';
 
 
-function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkLog | null, isOpen: boolean, onOpenChange: (open: boolean) => void }) {
-    if (!log) return null;
-
-    return (
-        <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Detalles del Registro</DialogTitle>
-                    <DialogDescription>
-                        Información completa del registro de jornada.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 text-sm">
-                    <div className="flex items-center gap-2">
-                        <strong>Tipo:</strong> <Badge variant={log.type === 'particular' ? 'secondary' : 'default'}>{log.type}</Badge>
-                    </div>
-                    {log.type === 'particular' ? (
-                        <>
-                            <div><strong>Fecha:</strong> {log.date ? format(parseISO(log.date), 'PPP', { locale: es }) : '-'}</div>
-                            <div><strong>Hora Inicio:</strong> {log.startTime ?? '-'}</div>
-                            <div><strong>Hora Fin:</strong> {log.endTime ?? '-'}</div>
-                            <div><strong>Duración:</strong> {log.duration ?? '-'} horas</div>
-                        </>
-                    ) : (
-                        <>
-                            <div><strong>Fecha Inicio:</strong> {log.startDate ? format(parseISO(log.startDate), 'PPP', { locale: es }) : '-'}</div>
-                            <div><strong>Fecha Fin:</strong> {log.endDate ? format(parseISO(log.endDate), 'PPP', { locale: es }) : '-'}</div>
-                        </>
-                    )}
-                    <div><strong>Descripción:</strong> {log.description}</div>
-                    <div className="font-bold text-lg text-green-600">Importe: €{log.amount?.toFixed(2) ?? '0.00'}</div>
-                    <div><strong>Tarifa Aplicada:</strong> €{log.rateApplied?.toFixed(2)}/h</div>
-                    <div className="space-y-2 pt-2">
-                        <div className="flex items-center gap-2">
-                            <Switch checked={log.isGrossCalculation} disabled id="isGross" />
-                            <Label htmlFor="isGross">Cálculo en Bruto (IRPF)</Label>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Switch checked={log.hasCoordination} disabled id="hasCoordination" />
-                            <Label htmlFor="hasCoordination">Plus Coordinación</Label>
-                        </div>
-                        {log.type === 'tutorial' && (
-                            <div className="flex items-center gap-2">
-                                <Switch checked={log.arrivesPrior} disabled id="arrivesPrior" />
-                                <Label htmlFor="arrivesPrior">Llegada Día Anterior</Label>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-function UserWorkLogs({ userId }: { userId: string }) {
+function MonthlySummary({ userId }: { userId: string }) {
   const firestore = useFirestore();
-  const [selectedLog, setSelectedLog] = useState<WorkLog | null>(null);
-
   const workLogsRef = useMemoFirebase(
-    () =>
-      userId && firestore
-        ? collection(firestore, `artifacts/${APP_ID}/users/${userId}/work_logs`)
-        : null,
+    () => userId ? collection(firestore, `artifacts/${APP_ID}/users/${userId}/work_logs`) : null,
     [firestore, userId]
   );
-
   const { data: workLogs, isLoading } = useCollection<WorkLog>(workLogsRef);
-  
-  const sortedWorkLogs = useMemo(() => {
-    if (!workLogs) return [];
-    return [...workLogs].sort((a, b) => {
-      const dateA = a.type === 'tutorial' ? a.startDate : a.date;
-      const dateB = b.type === 'tutorial' ? b.startDate : b.date;
-      if (!dateA || !dateB) return 0;
-      return parseISO(dateB).getTime() - parseISO(dateA).getTime();
+
+  const stats = useMemo(() => {
+    if (!workLogs) return { particularHours: 0, tutorialDays: 0, totalDaysWorked: 0 };
+
+    const now = new Date();
+    const currentMonth = getMonth(now);
+    const currentYear = getYear(now);
+    
+    let particularHours = 0;
+    let tutorialDays = 0;
+    const workedDays = new Set<string>();
+
+    workLogs.forEach(log => {
+      const logDate = log.date ? parseISO(log.date) : (log.startDate ? parseISO(log.startDate) : null);
+      if (!logDate || getYear(logDate) !== currentYear || getMonth(logDate) !== currentMonth) {
+        // For tutorials spanning months, we might need more complex logic, but this is a start.
+        // Let's check if the range intersects with the current month for tutorials
+        if(log.type === 'tutorial' && log.startDate && log.endDate) {
+            const start = parseISO(log.startDate);
+            const end = parseISO(log.endDate);
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                if (getYear(d) === currentYear && getMonth(d) === currentMonth) {
+                    workedDays.add(format(d, 'yyyy-MM-dd'));
+                    tutorialDays += 1;
+                }
+            }
+        }
+        return;
+      }
+
+      if (log.type === 'particular' && log.date) {
+        particularHours += log.duration || 0;
+        workedDays.add(log.date);
+      } else if (log.type === 'tutorial' && log.startDate && log.endDate) {
+        const start = parseISO(log.startDate);
+        const end = parseISO(log.endDate);
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          if (getYear(d) === currentYear && getMonth(d) === currentMonth) {
+             workedDays.add(format(d, 'yyyy-MM-dd'));
+             tutorialDays +=1;
+          }
+        }
+      }
     });
+
+    return { particularHours, tutorialDays, totalDaysWorked: workedDays.size };
   }, [workLogs]);
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
         <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-        <span>Cargando registros...</span>
+        <span>Cargando resumen...</span>
       </div>
     );
   }
 
   return (
-    <>
-      <div className="rounded-lg border bg-card overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Fecha</TableHead>
-              <TableHead>Descripción</TableHead>
-              <TableHead>Duración</TableHead>
-              <TableHead className="text-right">Importe</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sortedWorkLogs && sortedWorkLogs.length > 0 ? (
-              sortedWorkLogs.map((log) => (
-                <TableRow key={log.id} onClick={() => setSelectedLog(log)} className="cursor-pointer">
-                  <TableCell>
-                    <Badge variant={log.type === 'particular' ? 'secondary' : 'default'}>{log.type}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    {log.type === 'particular' && log.date 
-                      ? format(parseISO(log.date), 'dd/MM/yyyy') 
-                      : (log.startDate && log.endDate ? `${format(parseISO(log.startDate), 'dd/MM/yy')} - ${format(parseISO(log.endDate), 'dd/MM/yy')}`: '-')}
-                  </TableCell>
-                  <TableCell className="max-w-xs truncate">{log.description}</TableCell>
-                  <TableCell>{log.duration ?? '-'}</TableCell>
-                  <TableCell className="text-right">€{log.amount?.toFixed(2) ?? '0.00'}</TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-12">
-                  Este usuario no tiene registros de trabajo.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-      <WorkLogDetailsDialog log={selectedLog} isOpen={!!selectedLog} onOpenChange={(isOpen) => !isOpen && setSelectedLog(null)} />
-    </>
+    <Card>
+      <CardHeader>
+        <CardTitle>Resumen de {format(new Date(), 'MMMM', { locale: es })}</CardTitle>
+        <CardDescription>Actividad del mes en curso para este usuario.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center text-blue-600">
+                <Clock className="w-5 h-5 mr-2"/>
+                <h4 className="font-bold">Horas Particulares</h4>
+            </div>
+            <p className="text-3xl font-bold text-blue-800 mt-2">{stats.particularHours.toFixed(1)} <span className="text-lg font-medium">h</span></p>
+        </div>
+         <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+            <div className="flex items-center text-purple-600">
+                <Briefcase className="w-5 h-5 mr-2"/>
+                <h4 className="font-bold">Días de Tutorial</h4>
+            </div>
+            <p className="text-3xl font-bold text-purple-800 mt-2">{stats.tutorialDays} <span className="text-lg font-medium">días</span></p>
+        </div>
+         <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+            <div className="flex items-center text-green-600">
+                <CalendarIconLucide className="w-5 h-5 mr-2"/>
+                <h4 className="font-bold">Total Días Trabajados</h4>
+            </div>
+            <p className="text-3xl font-bold text-green-800 mt-2">{stats.totalDaysWorked} <span className="text-lg font-medium">días</span></p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
+
 
 function UserDetailContent({ userId }: { userId: string}) {
   const firestore = useFirestore();
   const { toast } = useToast();
 
   const userProfileRef = useMemoFirebase(
-    () => (userId && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, `user_${userId}`) : null,
+    () => (userId && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, `${userId}`) : null,
     [firestore, userId]
   );
   const userSettingsRef = useMemoFirebase(
@@ -349,17 +316,17 @@ function UserDetailContent({ userId }: { userId: string}) {
               Guardar Cambios
           </Button>
       </div>
+      
+      <MonthlySummary userId={userId} />
 
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Registros de Jornada</CardTitle>
-           <CardDescription>Lista de todos los registros de trabajo de este usuario.</CardDescription>
-        </CardHeader>
-        <CardContent>
-           <UserWorkLogs userId={userId} />
-        </CardContent>
-      </Card>
+      <div className="mt-8 flex justify-center">
+          <Link href={`/admin/users/${userId}/records`} passHref>
+             <Button variant="outline" size="lg">
+                <History className="mr-2 h-4 w-4" />
+                Ver Historial Completo de Registros
+             </Button>
+          </Link>
+      </div>
     </form>
   );
 }
