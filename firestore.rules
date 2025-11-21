@@ -115,7 +115,7 @@ service cloud.firestore {
        * @description This is a special rule to allow admins to perform a collection group query
        * across all `work_logs` collections. This is necessary for the admin timeline view.
        * @path /artifacts/{appId}/users/{userId}/work_logs/{workLogId}
-       * @allow (get) Admin can read any work log via a collection group query.
+       * @allow (get, list) Admin can read any work log via a collection group query.
        * @principle Provides a specific, narrow permission for a powerful query type needed by a specific feature.
        */
       match /{path=**}/work_logs/{workLogId} {
