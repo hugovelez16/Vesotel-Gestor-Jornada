@@ -513,3 +513,8 @@ export default function UserRecordsPage() {
     </div>
   );
 }
+
+// Esto es necesario para que el comando "next build" funcione en modo estático
+export async function generateStaticParams() {
+  return [{ userId: 'demo' }];
+}
