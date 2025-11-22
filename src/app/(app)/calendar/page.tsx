@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
+import { es } from 'date-fns/locale';
 
 export default function CalendarPage() {
     const [date, setDate] = useState<Date | undefined>(new Date());
@@ -22,6 +23,8 @@ export default function CalendarPage() {
                             selected={date}
                             onSelect={setDate}
                             className="p-0"
+                            locale={es}
+                            weekStartsOn={1}
                             classNames={{
                                 months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
                                 month: "space-y-4 w-full",

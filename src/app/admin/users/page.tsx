@@ -500,7 +500,7 @@ function CreateWorkLogDialog({ users, allUserSettings }: { users: UserProfile[],
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={formData.date ? parseISO(formData.date) : undefined} onSelect={(d) => handleDateChange('date', d)} initialFocus />
+                                        <Calendar mode="single" selected={formData.date ? parseISO(formData.date) : undefined} onSelect={(d) => handleDateChange('date', d)} initialFocus locale={es} weekStartsOn={1} />
                                     </PopoverContent>
                                 </Popover>
                           </div>
@@ -528,7 +528,7 @@ function CreateWorkLogDialog({ users, allUserSettings }: { users: UserProfile[],
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={formData.startDate ? parseISO(formData.startDate) : undefined} onSelect={(d) => handleDateChange('startDate', d)} initialFocus />
+                                        <Calendar mode="single" selected={formData.startDate ? parseISO(formData.startDate) : undefined} onSelect={(d) => handleDateChange('startDate', d)} initialFocus locale={es} weekStartsOn={1} />
                                     </PopoverContent>
                                 </Popover>
                           </div>
@@ -545,7 +545,7 @@ function CreateWorkLogDialog({ users, allUserSettings }: { users: UserProfile[],
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={formData.endDate ? parseISO(formData.endDate) : undefined} onSelect={(d) => handleDateChange('endDate', d)} initialFocus />
+                                        <Calendar mode="single" selected={formData.endDate ? parseISO(formData.endDate) : undefined} onSelect={(d) => handleDateChange('endDate', d)} initialFocus locale={es} weekStartsOn={1} />
                                     </PopoverContent>
                                 </Popover>
                           </div>

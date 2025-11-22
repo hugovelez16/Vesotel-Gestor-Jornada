@@ -393,6 +393,8 @@ function AdminTimeline() {
                                         selected={selectedDate}
                                         onSelect={(day) => day && setSelectedDate(startOfDay(day))}
                                         initialFocus
+                                        locale={es}
+                                        weekStartsOn={1}
                                     />
                                     </PopoverContent>
                                 </Popover>
