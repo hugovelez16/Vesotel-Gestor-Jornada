@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { EditWorkLogDialog } from "@/app/admin/users/[userId]/records/page";
+import { EditWorkLogDialog } from "@/app/admin/users/[userId]/records/RecordsClient";
 import { CreateWorkLogDialog } from "@/app/admin/users/page";
 
 // In-memory state, will be false unless MainNav is rendered first and sets it to true
