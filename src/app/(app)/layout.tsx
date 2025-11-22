@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import MainNav from "@/components/main-nav";
 import { Loader2 } from "lucide-react";
+import { ADMIN_EMAIL } from "@/lib/config";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
@@ -13,21 +14,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isUserLoading) {
-      // Still waiting for Firebase to determine auth state, do nothing.
       return;
     }
 
     if (!user) {
-      // If no user, redirect to login. This is definitive.
       router.replace("/login");
       return;
     }
 
   }, [isUserLoading, user, router]);
-
-  // The authorization logic is now handled in the /login page
-  // and the admin layouts. If a user gets here, they are authenticated.
-  // We just show a loading screen until the user object is resolved.
+  
   if (isUserLoading || !user) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">

@@ -22,6 +22,15 @@ import { Label } from "@/components/ui/label";
 import { EditWorkLogDialog } from "@/app/admin/users/[userId]/records/page";
 import { CreateWorkLogDialog } from "@/app/admin/users/page";
 
+// In-memory state, will be false unless MainNav is rendered first and sets it to true
+let adminSeesAdminView = true;
+if (typeof window !== 'undefined') {
+  const nav = document.querySelector('header');
+  if (nav) {
+    const isAdminNav = nav.innerText.includes("Usuarios");
+    adminSeesAdminView = isAdminNav;
+  }
+}
 
 const StatCard = ({ title, value, icon: Icon, colorClass = "text-primary" }: { title: string, value: string, icon: React.ElementType, colorClass?: string }) => (
     <Card>
@@ -510,6 +519,16 @@ function AdminDashboard() {
 
 export default function DashboardPage() {
   const { user, isUserLoading } = useUser();
+  const [isAdminView, setIsAdminView] = useState(true);
+
+  // This effect tries to sync with the MainNav's in-memory state.
+  // It's a bit of a hack but avoids a complex global state for this simple feature.
+  useEffect(() => {
+    if (user?.email === ADMIN_EMAIL) {
+        setIsAdminView(adminSeesAdminView);
+    }
+  }, [user]);
+
   const isAdmin = user?.email === ADMIN_EMAIL;
 
   if (isUserLoading) {
@@ -522,7 +541,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      {isAdmin ? <AdminDashboard /> : <UserDashboard />}
+      {isAdmin && isAdminView ? <AdminDashboard /> : <UserDashboard />}
     </div>
   );
 }

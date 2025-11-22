@@ -18,7 +18,8 @@ import {
   Menu,
   X,
   Briefcase,
-  AreaChart
+  AreaChart,
+  Repeat
 } from "lucide-react";
 import { VesotelLogo } from "./icons";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -50,6 +51,10 @@ const adminNavItems = [
     { href: "/admin/users", label: "Usuarios", icon: Users },
 ];
 
+// In-memory state for view mode, as it's a transient UI preference.
+// This avoids complexities of persisting it in localStorage or state management for this simple use case.
+let adminViewAsAdmin = true;
+
 export default function MainNav() {
   const { user } = useUser();
   const auth = useFirebaseAuth();
@@ -57,13 +62,16 @@ export default function MainNav() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  const isAdmin = user?.email === ADMIN_EMAIL;
+  
+  // Use a state that is initialized from our in-memory variable.
+  const [viewAsAdmin, setViewAsAdmin] = useState(isAdmin ? adminViewAsAdmin : false);
+
   const profileRef = useMemoFirebase(
     () => (user && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.uid) : null,
     [firestore, user]
   );
   const { data: profile } = useDoc<UserProfile>(profileRef);
-
-  const isAdmin = user?.email === ADMIN_EMAIL;
   
   const getDisplayName = () => {
     if (profile?.firstName) {
@@ -82,12 +90,20 @@ export default function MainNav() {
         signOut(auth);
     }
   }
+
+  const handleViewToggle = () => {
+    const newViewMode = !viewAsAdmin;
+    adminViewAsAdmin = newViewMode; // Update the in-memory variable
+    setViewAsAdmin(newViewMode); // Update the state to trigger re-render
+  };
   
-  const currentNavItems = isAdmin ? adminNavItems : userNavItems;
+  // Determine current items based on admin status and view mode
+  const currentNavItems = isAdmin && viewAsAdmin ? adminNavItems : userNavItems;
+  const homeHref = isAdmin && viewAsAdmin ? '/dashboard' : '/dashboard';
 
   const NavLinks = ({ onClick }: { onClick?: () => void }) => (
     currentNavItems.map((item) => {
-      const isActive = pathname === item.href || (pathname.startsWith(item.href) && item.href !== '/');
+      const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
       return (
         <Link
           key={item.href}
@@ -113,7 +129,7 @@ export default function MainNav() {
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
       <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
         <Link
-          href="/dashboard"
+          href={homeHref}
           className="flex items-center gap-2 text-lg font-semibold md:text-base"
         >
           <VesotelLogo />
@@ -131,7 +147,7 @@ export default function MainNav() {
         <SheetContent side="left">
           <nav className="grid gap-6 text-lg font-medium">
             <Link
-              href="#"
+              href={homeHref}
               className="flex items-center gap-2 text-lg font-semibold"
             >
               <VesotelLogo />
@@ -162,6 +178,15 @@ export default function MainNav() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            {isAdmin && (
+              <>
+                <DropdownMenuItem onClick={handleViewToggle}>
+                  <Repeat className="mr-2 h-4 w-4" />
+                  <span>Cambiar a vista de {viewAsAdmin ? 'Usuario' : 'Admin'}</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
             <Link href="/profile">
               <DropdownMenuItem>
                 <Settings className="mr-2 h-4 w-4" />
