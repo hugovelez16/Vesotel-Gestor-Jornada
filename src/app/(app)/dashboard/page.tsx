@@ -236,13 +236,15 @@ function AdminTimeline() {
         const fetchAllSettings = async () => {
              const settingsMap: Record<string, UserSettings> = {};
              
-             for (const user of users) {
+             const settingsPromises = users.map(user => {
                  const settingsDocRef = doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`);
-                 const docSnap = await getDoc(settingsDocRef);
-                 if (docSnap.exists()) {
-                     settingsMap[user.uid] = docSnap.data() as UserSettings;
-                 }
-             }
+                 return getDoc(settingsDocRef).then(docSnap => {
+                     if (docSnap.exists()) {
+                         settingsMap[user.uid] = docSnap.data() as UserSettings;
+                     }
+                 });
+             });
+             await Promise.all(settingsPromises);
              setAllUserSettings(settingsMap);
         };
         
@@ -267,6 +269,7 @@ function AdminTimeline() {
             const allLogs: WorkLog[] = [];
 
             for (const user of users) {
+                 if (user.email === ADMIN_EMAIL) continue;
                 try {
                     const logsCollectionRef = collection(firestore, `artifacts/${APP_ID}/users/${user.uid}/work_logs`);
                     const q = query(logsCollectionRef);
@@ -359,6 +362,9 @@ function AdminTimeline() {
             </button>
         )
     }
+    
+    const filteredUsers = useMemo(() => users?.filter(u => u.email !== ADMIN_EMAIL), [users]);
+
 
     return (
         <>
@@ -429,7 +435,7 @@ function AdminTimeline() {
                                 </div>
                                 
                                 {/* User Rows */}
-                                {users?.map(user => (
+                                {filteredUsers?.map(user => (
                                     <React.Fragment key={user.uid}>
                                         {/* User Info Cell */}
                                         <div className="sticky left-0 z-10 flex h-20 items-center gap-3 border-b border-r bg-card p-2">
@@ -453,7 +459,7 @@ function AdminTimeline() {
                                 ))}
                             </div>
                         )}
-                        {!isLoading && (!users || users.length === 0) && (
+                        {!isLoading && (!filteredUsers || filteredUsers.length === 0) && (
                             <div className="flex h-40 items-center justify-center text-muted-foreground">
                                 No hay usuarios para mostrar.
                             </div>
