@@ -116,7 +116,7 @@ export default function MainNav() {
           href="/dashboard"
           className="flex items-center gap-2 text-lg font-semibold md:text-base"
         >
-          <Briefcase className="h-6 w-6 text-primary" />
+          <VesotelLogo />
           <span className="sr-only">Vesotel Jornada</span>
         </Link>
         <NavLinks />
@@ -134,7 +134,7 @@ export default function MainNav() {
               href="#"
               className="flex items-center gap-2 text-lg font-semibold"
             >
-              <Briefcase className="h-6 w-6 text-primary" />
+              <VesotelLogo />
               <span className="sr-only">Vesotel Jornada</span>
             </Link>
             <NavLinks onClick={() => setIsMobileMenuOpen(false)} />
