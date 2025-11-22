@@ -160,7 +160,7 @@ function TimelineLogDetailsDialog({ log, userSettings, isOpen, onOpenChange, onL
                 <div className="space-y-4 text-sm">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                             <strong>Tipo:</strong> <Badge variant={log.type === 'particular' ? 'secondary' : 'default'}>{log.type}</Badge>
+                             <strong>Tipo:</strong> <Badge variant={log.type === 'particular' ? 'secondary' : 'default'}>{log.type.charAt(0).toUpperCase() + log.type.slice(1)}</Badge>
                         </div>
                          {log && userSettings && (
                            <EditWorkLogDialog log={log} userId={log.userId} userSettings={userSettings} onLogUpdate={onLogUpdate}>
@@ -323,8 +323,9 @@ function AdminTimeline() {
     const renderLog = (log: WorkLog) => {
         let left = 0;
         let width = 0;
+        const isTutorial = log.type === 'tutorial';
 
-        if (log.type === 'tutorial') {
+        if (isTutorial) {
             const startPos = timeToPosition('09:00');
             const endPos = timeToPosition('16:00');
             left = startPos;
@@ -338,8 +339,8 @@ function AdminTimeline() {
 
         if (width <= 0) return null;
         
-        const displayStartTime = log.type === 'particular' ? log.startTime : '09:00';
-        const displayEndTime = log.type === 'particular' ? log.endTime : '16:00';
+        const displayStartTime = isTutorial ? '09:00' : log.startTime;
+        const displayEndTime = isTutorial ? '16:00' : log.endTime;
 
 
         return (
@@ -348,7 +349,7 @@ function AdminTimeline() {
                 onClick={() => setSelectedLog(log)}
                 className={cn(
                     "absolute top-1/2 -translate-y-1/2 h-12 rounded-lg p-2 text-white shadow-md flex flex-col justify-center text-left",
-                    log.type === 'tutorial' ? "bg-purple-500/90 hover:bg-purple-600/90" : "bg-blue-500/90 hover:bg-blue-600/90"
+                    isTutorial ? "bg-purple-500/90 hover:bg-purple-600/90" : "bg-blue-500/90 hover:bg-blue-600/90"
                 )}
                 style={{ left: `${left}%`, width: `${width}%` }}
                 title={`${log.description} (${displayStartTime ?? ''} - ${displayEndTime ?? ''})`}
@@ -504,6 +505,8 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
 
     
 

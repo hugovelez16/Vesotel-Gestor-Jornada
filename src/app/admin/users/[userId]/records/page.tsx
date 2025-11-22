@@ -49,7 +49,7 @@ function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkLog | nu
                 </DialogHeader>
                 <div className="space-y-4 text-sm">
                     <div className="flex items-center gap-2">
-                        <strong>Tipo:</strong> <Badge variant={log.type === 'particular' ? 'secondary' : 'default'}>{log.type}</Badge>
+                        <strong>Tipo:</strong> <Badge variant={log.type === 'particular' ? 'secondary' : 'default'}>{log.type.charAt(0).toUpperCase() + log.type.slice(1)}</Badge>
                     </div>
                     {log.type === 'particular' ? (
                         <>
@@ -150,10 +150,10 @@ export function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate, chil
         };
         setIsLoading(true);
 
-        const updatedLogData: Partial<WorkLog> = { 
-            ...formData, 
+        const updatedLogData: Partial<WorkLog> = {
+            ...formData,
             type: logType,
-            userId: userId // Use the userId prop directly
+            userId: userId,
         };
 
         const { amount, isGross, rateApplied, duration } = calculateEarnings(updatedLogData, userSettings);
@@ -430,7 +430,7 @@ function UserWorkLogs({ userId, userSettings }: { userId: string, userSettings: 
                     sortedWorkLogs.map((log) => (
                         <TableRow key={log.id} onClick={() => handleRowClick(log)} className="cursor-pointer">
                           <TableCell>
-                              <Badge variant={log.type === 'particular' ? 'secondary' : 'default'}>{log.type}</Badge>
+                              <Badge variant={log.type === 'particular' ? 'secondary' : 'default'}>{log.type.charAt(0).toUpperCase() + log.type.slice(1)}</Badge>
                           </TableCell>
                           <TableCell>
                               {log.type === 'particular' && log.date 
@@ -511,5 +511,7 @@ export default function UserRecordsPage({ params }: { params: { userId: string }
   );
 }
 
+
+    
 
     
