@@ -3,7 +3,7 @@
 "use client";
 
 import { useFirestore, useMemoFirebase, useCollection, useDoc } from "@/firebase";
-import { collection, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, getDocs, getDoc, setDoc, query, where } from "firebase/firestore";
+import { collection, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, getDocs, getDoc, setDoc, query, where, writeBatch } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogClose
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -187,18 +188,18 @@ function UserDetailContent({ userId, onUserUpdate }: { userId: string, onUserUpd
     };
 
     const settingsData: Partial<UserSettings> = {
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      hourlyRate: formData.hourlyRate || 0,
-      dailyRate: formData.dailyRate || 0,
-      coordinationRate: formData.coordinationRate || 0,
-      nightRate: formData.nightRate || 0,
-      isGross: formData.isGross || false,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        hourlyRate: formData.hourlyRate || 0,
+        dailyRate: formData.dailyRate || 0,
+        coordinationRate: formData.coordinationRate || 0,
+        nightRate: formData.nightRate || 0,
+        isGross: formData.isGross || false,
     };
     
     try {
       await Promise.all([
-        setDoc(userProfileRef, profileData, { merge: true }),
+        updateDoc(userProfileRef, profileData),
         setDoc(userSettingsRef, settingsData, { merge: true }),
       ]);
 
@@ -640,6 +641,108 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
   )
 }
 
+function CreateUserDialog({ onUserUpdate }: { onUserUpdate: () => void }) {
+    const [open, setOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [formData, setFormData] = useState({ firstName: '', lastName: '', email: '' });
+    const firestore = useFirestore();
+    const { toast } = useToast();
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSubmit = async () => {
+        if (!firestore) return;
+        if (!formData.email || !formData.firstName || !formData.lastName) {
+            toast({ title: "Error", description: "Todos los campos son obligatorios.", variant: "destructive" });
+            return;
+        }
+        setIsLoading(true);
+
+        try {
+            const batch = writeBatch(firestore);
+
+            // 1. Add to allowed_users to grant access
+            const allowedUsersRef = collection(firestore, `artifacts/${APP_ID}/public/data/allowed_users`);
+            batch.set(doc(allowedUsersRef), { email: formData.email.toLowerCase() });
+
+            // 2. Create a placeholder user profile
+            const usersRef = collection(firestore, `artifacts/${APP_ID}/public/data/users`);
+            // The UID will be unknown until the user logs in. For now, we create a placeholder document
+            // with a generated ID. This is not ideal, but it allows the user to appear in the list.
+            // The correct approach would be to have a cloud function that creates the profile
+            // once the user is created in Auth, but we can't do that from the client.
+            // Let's create it with a temporary ID, and the login flow should handle replacing it.
+            const tempUserId = doc(collection(firestore, 'temp')).id;
+            const userProfileRef = doc(usersRef, tempUserId);
+            
+            const newUserProfile: Partial<UserProfile> = {
+                uid: tempUserId,
+                email: formData.email.toLowerCase(),
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                type: 'user_registry',
+            };
+            batch.set(userProfileRef, newUserProfile);
+
+            await batch.commit();
+
+            toast({ title: "Usuario Creado", description: `${formData.email} ahora tiene acceso y ha sido añadido a la lista de usuarios.` });
+            setOpen(false);
+            onUserUpdate();
+        } catch (error: any) {
+            console.error("Error creating user:", error);
+            toast({ title: "Error", description: "No se pudo crear el usuario.", variant: "destructive" });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Crear Usuario
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Crear Nuevo Usuario</DialogTitle>
+                    <DialogDescription>
+                        Introduce los datos para dar de alta a un nuevo usuario. Se le concederá acceso inmediatamente.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="firstName" className="text-right">Nombre</Label>
+                        <Input id="firstName" name="firstName" value={formData.firstName} onChange={handleInputChange} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="lastName" className="text-right">Apellidos</Label>
+                        <Input id="lastName" name="lastName" value={formData.lastName} onChange={handleInputChange} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="email" className="text-right">Email</Label>
+                        <Input id="email" name="email" type="email" value={formData.email} onChange={handleInputChange} className="col-span-3" />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button variant="ghost">Cancelar</Button>
+                    </DialogClose>
+                    <Button onClick={handleSubmit} disabled={isLoading}>
+                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Guardar Usuario
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export default function AdminUsersPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -773,9 +876,12 @@ export default function AdminUsersPage() {
             <h1 className="text-3xl font-bold tracking-tight">Gestión de Usuarios</h1>
             <p className="text-muted-foreground">Administra usuarios y solicitudes de acceso.</p>
         </div>
-        {users && allUserSettings && (
-            <CreateWorkLogDialog users={users.filter(u => u.email !== ADMIN_EMAIL)} allUserSettings={allUserSettings} />
-        )}
+        <div className="flex items-center gap-2">
+            {users && allUserSettings && users.length > 0 && allUserSettings.length > 0 && (
+                <CreateWorkLogDialog users={users.filter(u => u.email !== ADMIN_EMAIL)} allUserSettings={allUserSettings} onLogUpdate={handleUserUpdate}/>
+            )}
+            <CreateUserDialog onUserUpdate={handleUserUpdate} />
+        </div>
       </div>
 
       <Tabs defaultValue="users">
@@ -813,7 +919,7 @@ export default function AdminUsersPage() {
                     {renderTableBody(
                         isLoading,
                         users,
-                        (user) => (
+                        (user: UserProfile) => (
                            <React.Fragment key={user.uid}>
                                 <TableRow onClick={() => handleRowClick(user.uid)} className="cursor-pointer">
                                     <TableCell>

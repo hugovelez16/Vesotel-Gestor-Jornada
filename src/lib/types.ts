@@ -7,7 +7,7 @@ export interface UserProfile {
   email: string;
   firstName: string;
   lastName: string;
-  lastLogin: Timestamp;
+  lastLogin?: Timestamp;
   type: 'user_registry';
 }
 
