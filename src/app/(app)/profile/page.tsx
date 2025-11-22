@@ -58,7 +58,7 @@ export default function ProfilePage() {
 
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (!user || !firestore || !profileRef) return;
+        if (!user || !firestore || !profileRef || !settingsRef) return;
         setIsLoading(true);
 
         const formData = new FormData(e.currentTarget);
@@ -86,11 +86,10 @@ export default function ProfilePage() {
         };
 
         try {
-            const settingsDocRef = doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`);
             
             await Promise.all([
               setDoc(profileRef, newProfileData, { merge: true }),
-              setDoc(settingsDocRef, newSettingsData, { merge: true })
+              setDoc(settingsRef, newSettingsData, { merge: true })
             ]);
             
             toast({

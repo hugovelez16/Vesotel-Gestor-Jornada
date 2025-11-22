@@ -57,7 +57,7 @@ export default function MainNav() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const profileRef = useMemoFirebase(
-    () => (user && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.uid) : null,
+    () => (user && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, `user_${user.uid}`) : null,
     [firestore, user]
   );
   const { data: profile } = useDoc<UserProfile>(profileRef);
@@ -86,7 +86,7 @@ export default function MainNav() {
 
   const NavLinks = ({ onClick }: { onClick?: () => void }) => (
     currentNavItems.map((item) => {
-      const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+      const isActive = pathname === item.href || (pathname.startsWith(item.href) && item.href !== '/');
       return (
         <Link
           key={item.href}
