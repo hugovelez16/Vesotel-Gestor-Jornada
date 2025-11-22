@@ -27,7 +27,7 @@ export default function ProfilePage() {
     );
 
     const profileRef = useMemoFirebase(
-      () => user && firestore ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, `user_${user.uid}`) : null,
+      () => user && firestore ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.uid) : null,
       [firestore, user]
     );
 

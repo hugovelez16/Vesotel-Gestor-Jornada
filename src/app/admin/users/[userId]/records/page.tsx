@@ -470,7 +470,7 @@ export default function UserRecordsPage({ params }: { params: { userId: string }
   const firestore = useFirestore();
 
   const userProfileRef = useMemoFirebase(
-    () => (userId && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, `user_${userId}`) : null,
+    () => (userId && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, userId) : null,
     [firestore, userId]
   );
   const userSettingsRef = useMemoFirebase(
@@ -510,8 +510,3 @@ export default function UserRecordsPage({ params }: { params: { userId: string }
     </div>
   );
 }
-
-
-    
-
-    
