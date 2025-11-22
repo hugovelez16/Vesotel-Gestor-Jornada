@@ -35,8 +35,9 @@ export function initializeFirebase() {
 export function getSdks(firebaseApp: FirebaseApp) {
   const auth = getAuth(firebaseApp);
   // Set the tenant ID if available in the config
-  if (firebaseConfig.authDomain?.includes("identity.firebaseapp.com")) {
-      const tenantId = firebaseConfig.authDomain.split('.')[0];
+  const authDomain = firebaseConfig.authDomain || (getApp().options as any).authDomain;
+  if (authDomain?.includes("identity.firebaseapp.com")) {
+      const tenantId = authDomain.split('.')[0];
       auth.tenantId = tenantId;
   }
   return {
