@@ -1,0 +1,40 @@
+name: Deploy Next.js to Plesk
+on:
+  push:
+    branches:
+      - main  # ⚠️ Si tu rama principal se llama 'master', cambia esto a 'master'
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Obtener el código
+        uses: actions/checkout@v4
+
+      - name: 🟢 Instalar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Instalar dependencias
+        run: npm ci --legacy-peer-deps
+
+      - name: 🏗️ Construir proyecto (Build)
+        run: npm run build
+        env:
+          CI: false
+
+      - name: 🚀 Subir a Plesk vía FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./out/      # Carpeta generada por Next.js
+          server-dir: /httpdocs/  # Carpeta destino en Plesk
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
