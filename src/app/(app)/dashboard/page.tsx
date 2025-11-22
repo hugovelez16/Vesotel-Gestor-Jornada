@@ -5,11 +5,11 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { ADMIN_EMAIL, APP_ID } from "@/lib/config";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Loader2, Users, BookOpen, ChevronLeft, ChevronRight, Calendar as CalendarIcon, DollarSign, Clock, Briefcase, Edit } from "lucide-react";
+import { PlusCircle, Loader2, Users, BookOpen, ChevronLeft, ChevronRight, Calendar as CalendarIcon, DollarSign, Clock, Briefcase, Edit, User, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import type { UserProfile, UserSettings, WorkLog } from "@/lib/types";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
-import { addDays, format, startOfDay, parseISO, getMonth, getYear, isSameMonth } from 'date-fns';
+import { addDays, format, startOfDay, parseISO, getMonth, getYear, isSameMonth, differenceInCalendarDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -47,7 +47,12 @@ const StatCard = ({ title, value, icon: Icon, colorClass = "text-primary" }: { t
 function UserDashboard() {
     const { user } = useUser();
     const firestore = useFirestore();
-    const [monthlyStats, setMonthlyStats] = useState({ totalEarnings: 0, totalHours: 0, totalDaysWorked: 0 });
+    const [monthlyStats, setMonthlyStats] = useState({ 
+        totalEarnings: 0, 
+        totalDaysWorked: 0,
+        tutorialDays: 0,
+        particularHours: 0,
+    });
 
     const workLogsRef = useMemoFirebase(
         () => user ? collection(firestore, `artifacts/${APP_ID}/users/${user.uid}/work_logs`) : null,
@@ -60,31 +65,37 @@ function UserDashboard() {
         if (!entries) return;
 
         const now = new Date();
-        const currentMonth = getMonth(now);
-        const currentYear = getYear(now);
-
-        const currentEntries = entries.filter(e => {
-            const dateStr = e.type === 'particular' ? e.date : e.startDate;
-            if (!dateStr) return false;
-            const entryDate = parseISO(dateStr);
-            return isSameMonth(entryDate, now);
-        });
 
         let totalEarnings = 0;
-        let totalHours = 0;
-        const uniqueDays = new Set();
+        let particularHours = 0;
+        let tutorialDays = 0;
+        const uniqueDays = new Set<string>();
 
-        currentEntries.forEach(entry => {
-            totalEarnings += (entry.amount || 0);
-            if (entry.type === 'particular') {
-                totalHours += (entry.duration || 0);
+        entries.forEach(entry => {
+            const entryDateStr = entry.type === 'particular' ? entry.date : entry.startDate;
+            if (!entryDateStr) return;
+            
+            const entryDate = parseISO(entryDateStr);
+            const isCurrentMonth = isSameMonth(entryDate, now);
+
+            if(isCurrentMonth) {
+                totalEarnings += (entry.amount || 0);
+            }
+
+            if (entry.type === 'particular' && entry.date && isSameMonth(parseISO(entry.date), now)) {
+                particularHours += (entry.duration || 0);
                 uniqueDays.add(entry.date);
-            } else if (entry.startDate && entry.endDate) {
+            } else if (entry.type === 'tutorial' && entry.startDate && entry.endDate) {
                 const start = parseISO(entry.startDate);
                 const end = parseISO(entry.endDate);
+                
                 for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
                     if (isSameMonth(dt, now)) {
-                       uniqueDays.add(format(dt, 'yyyy-MM-dd'));
+                       const dayString = format(dt, 'yyyy-MM-dd');
+                       if (!uniqueDays.has(dayString)) { // Avoid double-counting days
+                           tutorialDays += 1;
+                           uniqueDays.add(dayString);
+                       }
                     }
                 }
             }
@@ -92,8 +103,9 @@ function UserDashboard() {
 
         setMonthlyStats({
             totalEarnings,
-            totalHours,
-            totalDaysWorked: uniqueDays.size
+            totalDaysWorked: uniqueDays.size,
+            tutorialDays,
+            particularHours,
         });
 
     }, [entries]);
@@ -108,10 +120,11 @@ function UserDashboard() {
         </div>
       </div>
       
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
              <StatCard title="Ingresos (Mes Actual)" value={`${monthlyStats.totalEarnings.toFixed(2)} €`} icon={DollarSign} colorClass="text-green-500" />
-             <StatCard title="Horas Trabajadas (Mes Actual)" value={`${monthlyStats.totalHours.toFixed(1)} h`} icon={Clock} colorClass="text-blue-500" />
-             <StatCard title="Días Trabajados (Mes Actual)" value={`${monthlyStats.totalDaysWorked}`} icon={Briefcase} colorClass="text-purple-500" />
+             <StatCard title="Horas Particulares (Mes)" value={`${monthlyStats.particularHours.toFixed(1)} h`} icon={Clock} colorClass="text-blue-500" />
+             <StatCard title="Días Tutorial (Mes)" value={`${monthlyStats.tutorialDays}`} icon={BookOpen} colorClass="text-purple-500" />
+             <StatCard title="Total Días Trabajados (Mes)" value={`${monthlyStats.totalDaysWorked}`} icon={Briefcase} colorClass="text-indigo-500" />
         </div>
 
       <div>
