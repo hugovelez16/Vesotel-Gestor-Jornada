@@ -32,20 +32,24 @@ export default function RequestAccessPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
   
-  // This state will be derived from checking user's status
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
 
 
   useEffect(() => {
-    if (!isUserLoading && user && firestore) {
+    if (isUserLoading) return; // Wait for user status to be resolved
+
+    if (!user) {
+        router.replace("/login");
+        return;
+    }
+    
+    if (firestore) {
         const checkAccess = async () => {
-            // 1. Check if user is admin
             if(user.email === ADMIN_EMAIL){
                  router.replace("/dashboard");
                  return;
             }
 
-            // 2. Check if user is in allowed_users
             const allowedUsersQuery = query(collection(firestore, `artifacts/${APP_ID}/public/data/allowed_users`), where("email", "==", user.email));
             const allowedUsersSnapshot = await getDocs(allowedUsersQuery);
             if(!allowedUsersSnapshot.empty) {
@@ -53,34 +57,23 @@ export default function RequestAccessPage() {
                 return;
             }
 
-            // 3. Check if user has a pending request
-            const accessRequestQuery = query(collection(firestore, `artifacts/${APP_ID}/public/data/access_requests`), where("email", "==", user.email));
+            const accessRequestQuery = query(collection(firestore, `artifacts/${APP_ID}/public/data/access_requests`), where("email", "==", user.email), where("status", "==", "pending"));
             const accessRequestSnapshot = await getDocs(accessRequestQuery);
-            let hasPendingRequest = false;
-            accessRequestSnapshot.forEach(doc => {
-                if(doc.data().status === 'pending') {
-                    hasPendingRequest = true;
-                }
-            });
-
-            if(hasPendingRequest){
+            if(!accessRequestSnapshot.empty){
                 setRequestSent(true);
             }
+            
             setIsCheckingStatus(false);
         }
         checkAccess();
-
-    } else if (!isUserLoading && !user) {
-        // If there's no user and we're not loading, they need to log in.
-        router.replace("/login");
     }
   }, [user, isUserLoading, router, firestore]);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      firstName: user?.displayName?.split(' ')[0] || "",
-      lastName: user?.displayName?.split(' ').slice(1).join(' ') || "",
+      firstName: "",
+      lastName: "",
     },
   });
 
@@ -135,8 +128,6 @@ export default function RequestAccessPage() {
   }
 
   if (!user) {
-    // This case should theoretically be handled by the useEffect redirecting to /login,
-    // but it's a good safeguard.
     return null; 
   }
   

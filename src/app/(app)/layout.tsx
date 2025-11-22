@@ -33,22 +33,28 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isAuthorizing, setIsAuthorizing] = useState(true);
 
   useEffect(() => {
-    if (!isUserLoading) {
-      if (!user) {
-        router.replace("/login");
-        return;
-      }
-      
-      setIsAuthorizing(true);
-      checkUserAuthorization(user.email!, firestore).then(isAuth => {
-        if (!isAuth) {
-          router.replace('/request-access');
-        } else {
-          setIsAuthorized(true);
-        }
-        setIsAuthorizing(false);
-      });
+    if (isUserLoading) {
+      // Still waiting for Firebase to determine auth state, do nothing.
+      return;
     }
+
+    if (!user) {
+      // If no user, redirect to login. This is definitive.
+      router.replace("/login");
+      return;
+    }
+
+    // At this point, we have a user. Now we check authorization.
+    checkUserAuthorization(user.email!, firestore).then(isAuth => {
+      if (isAuth) {
+        setIsAuthorized(true);
+      } else {
+        // If not authorized, redirect to the request access page.
+        router.replace('/request-access');
+      }
+      setIsAuthorizing(false);
+    });
+
   }, [isUserLoading, user, firestore, router]);
 
   if (isUserLoading || isAuthorizing || !isAuthorized) {
