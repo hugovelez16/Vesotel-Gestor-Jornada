@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { EditWorkLogDialog } from "@/app/admin/users/[userId]/records/page";
+import { CreateWorkLogDialog } from "@/app/admin/users/page";
 
 
 const StatCard = ({ title, value, icon: Icon, colorClass = "text-primary" }: { title: string, value: string, icon: React.ElementType, colorClass?: string }) => (
@@ -364,7 +365,7 @@ function AdminTimeline() {
     }
     
     const filteredUsers = useMemo(() => users?.filter(u => u.email !== ADMIN_EMAIL), [users]);
-
+    const userSettingsList = useMemo(() => Object.values(allUserSettings), [allUserSettings]);
 
     return (
         <>
@@ -375,7 +376,7 @@ function AdminTimeline() {
                             <CardTitle>Cronograma de Trabajo Diario</CardTitle>
                             <CardDescription>Visualización de los turnos de trabajo del día.</CardDescription>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-4">
                             <div className="flex shrink-0 items-center gap-1 rounded-md border bg-card p-1">
                                 <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setSelectedDate(addDays(selectedDate, -1))}>
                                     <ChevronLeft className="h-4 w-4" />
@@ -408,6 +409,18 @@ function AdminTimeline() {
                                     <ChevronRight className="h-4 w-4" />
                                 </Button>
                             </div>
+                             {filteredUsers && userSettingsList && (
+                                <CreateWorkLogDialog 
+                                    users={filteredUsers} 
+                                    allUserSettings={userSettingsList} 
+                                    onLogUpdate={handleLogUpdate} 
+                                >
+                                    <Button>
+                                        <PlusCircle className="mr-2 h-4 w-4" />
+                                        Crear Registro
+                                    </Button>
+                                </CreateWorkLogDialog>
+                            )}
                         </div>
                     </div>
                     <div className="flex items-center gap-4 pt-4 text-sm">

@@ -383,7 +383,7 @@ function UserDetailContent({ userId }: { userId: string}) {
 }
 
 
-function CreateWorkLogDialog({ users, allUserSettings }: { users: UserProfile[], allUserSettings: UserSettings[] }) {
+export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, children }: { users: UserProfile[], allUserSettings: UserSettings[], onLogUpdate?: () => void, children?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [logType, setLogType] = useState<'particular' | 'tutorial'>('particular');
@@ -480,6 +480,7 @@ function CreateWorkLogDialog({ users, allUserSettings }: { users: UserProfile[],
         toast({title: "Éxito", description: "Registro de trabajo añadido correctamente."});
         setOpen(false);
         resetForm();
+        onLogUpdate?.();
 
     } catch (error: any) {
         console.error("Error creating work log:", error);
@@ -492,10 +493,12 @@ function CreateWorkLogDialog({ users, allUserSettings }: { users: UserProfile[],
   return (
       <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if(!isOpen) resetForm(); }}>
           <DialogTrigger asChild>
-               <Button>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Crear Nuevo Registro
-              </Button>
+               {children ?? (
+                <Button>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Crear Nuevo Registro
+                </Button>
+               )}
           </DialogTrigger>
           <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
