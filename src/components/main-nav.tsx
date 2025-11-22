@@ -3,7 +3,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useUser, useAuth as useFirebaseAuth, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { cn } from "@/lib/utils";
 import {
@@ -60,6 +60,7 @@ export default function MainNav() {
   const auth = useFirebaseAuth();
   const firestore = useFirestore();
   const pathname = usePathname();
+  const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const isAdmin = user?.email === ADMIN_EMAIL;
@@ -95,6 +96,7 @@ export default function MainNav() {
     const newViewMode = !viewAsAdmin;
     adminViewAsAdmin = newViewMode; // Update the in-memory variable
     setViewAsAdmin(newViewMode); // Update the state to trigger re-render
+    router.push('/dashboard'); // Redirect to dashboard on view change
   };
   
   // Determine current items based on admin status and view mode
