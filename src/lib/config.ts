@@ -1,7 +1,7 @@
 
 export const firebaseConfig = {
   apiKey: "AIzaSyAkkt59I1DKzT_EBm33NFMwEOJGnJkC5kA",
-  authDomain: "studio-5177963256-f3dc5.firebaseapp.com",
+  authDomain: "vesotel-gestor-jornada.firebaseapp.com",
   projectId: "studio-5177963256-f3dc5",
   storageBucket: "studio-5177963256-f3dc5.appspot.com",
   messagingSenderId: "1088612949766",
