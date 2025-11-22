@@ -1,4 +1,5 @@
 
+
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 import type { WorkLog, UserSettings } from '@/lib/types';
 
@@ -12,9 +13,12 @@ function calculateParticular(log: Partial<WorkLog>, settings: UserSettings) {
   const base = duration * rate;
   // Coordination is a flat rate per event, not per hour
   const extras = log.hasCoordination ? coordination : 0;
-  const total = base + extras;
+  let total = base + extras;
 
-  // 'hasNight' is not applicable for 'particular' logs as per user request.
+  if (log.hasNight) {
+    total += settings.nightRate ?? 30;
+  }
+
   return { total, rateApplied: rate, duration };
 }
 
@@ -27,14 +31,13 @@ function calculateTutorial(log: Partial<WorkLog>, settings: UserSettings) {
   let days = differenceInCalendarDays(end, start) + 1;
   if (days <= 0) days = 1;
 
-  // 'arrivesPrior' is associated with 'night' calculation, not 'coordination'.
   const coordinationDays = days;
   
   let nightBase = days > 0 ? days - 1 : 0;
   let nights = log.arrivesPrior ? nightBase + 1 : nightBase;
   
   const dailyTotal = days * (settings.dailyRate ?? 0);
-  const nightTotal = nights * (settings.nightRate ?? 30);
+  const nightTotal = (log.hasNight ? nights : 0) * (settings.nightRate ?? 30);
   const coordinationTotal = log.hasCoordination ? (coordinationDays * (settings.coordinationRate ?? 10)) : 0;
 
   const total = dailyTotal + nightTotal + coordinationTotal;

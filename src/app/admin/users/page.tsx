@@ -3,7 +3,7 @@
 "use client";
 
 import { useFirestore, useMemoFirebase, useCollection, useDoc } from "@/firebase";
-import { collection, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, getDocs, getDoc, setDoc } from "firebase/firestore";
+import { collection, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, getDocs, getDoc, setDoc, query, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,8 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { APP_ID, ADMIN_EMAIL } from "@/lib/config";
 import { useToast } from "@/hooks/use-toast";
-import type { AccessRequest, UserProfile, WorkLog, UserSettings } from "@/lib/types";
-import { Loader2, CheckCircle, XCircle, PlusCircle, Users, ChevronDown, ChevronUp, History, Briefcase, Clock, Calendar as CalendarIconLucide } from "lucide-react";
+import type { AccessRequest, UserProfile, WorkLog, UserSettings, AllowedUser } from "@/lib/types";
+import { Loader2, CheckCircle, XCircle, PlusCircle, Users, ChevronDown, ChevronUp, History, Briefcase, Clock, Calendar as CalendarIconLucide, ShieldOff } from "lucide-react";
 import { format, parseISO, getMonth, getYear } from "date-fns";
 import React, { useState, useEffect, useMemo, FormEvent } from 'react';
 import {
@@ -38,6 +38,7 @@ import { es } from 'date-fns/locale';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from 'next/link';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 
 function MonthlySummary({ userId }: { userId: string }) {
@@ -145,6 +146,7 @@ function UserDetailContent({ userId }: { userId: string}) {
 
   const [formData, setFormData] = useState<Partial<UserProfile & UserSettings>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isRevoking, setIsRevoking] = useState(false);
 
   useEffect(() => {
     let data: Partial<UserProfile & UserSettings> = {};
@@ -222,7 +224,35 @@ function UserDetailContent({ userId }: { userId: string}) {
     } finally {
       setIsSaving(false);
     }
-  }
+  };
+
+    const handleRevokeAccess = async () => {
+    if (!firestore || !profile?.email) {
+        toast({ title: "Error", description: "No se puede encontrar el email del usuario para revocar el acceso.", variant: "destructive" });
+        return;
+    }
+    setIsRevoking(true);
+    try {
+        const allowedUsersRef = collection(firestore, `artifacts/${APP_ID}/public/data/allowed_users`);
+        const q = query(allowedUsersRef, where("email", "==", profile.email));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            toast({ title: "Información", description: "El acceso para este usuario ya estaba revocado.", variant: "default" });
+            return;
+        }
+
+        const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+        await Promise.all(deletePromises);
+
+        toast({ title: "Acceso Revocado", description: `Se ha revocado el acceso para ${profile.email}.` });
+    } catch (error: any) {
+        console.error("Error revoking access:", error);
+        toast({ title: "Error", description: "No se pudo revocar el acceso.", variant: "destructive" });
+    } finally {
+        setIsRevoking(false);
+    }
+  };
 
 
   if (isLoading) {
@@ -308,11 +338,34 @@ function UserDetailContent({ userId }: { userId: string}) {
         </Card>
       </div>
 
-       <div className="mt-8 flex justify-end">
-          <Button type="submit" disabled={isSaving}>
-              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Guardar Cambios
-          </Button>
+       <div className="mt-8 flex justify-between">
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="destructive" type="button" disabled={profile?.email === ADMIN_EMAIL}>
+                        <ShieldOff className="mr-2 h-4 w-4" />
+                        Revocar Acceso
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>¿Estás seguro de revocar el acceso?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Esta acción impedirá que el usuario inicie sesión en la aplicación. Sus datos y registros no se eliminarán. Podrás concederle acceso de nuevo aprobando una nueva solicitud.
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleRevokeAccess} disabled={isRevoking}>
+                        {isRevoking && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Confirmar Revocación
+                    </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            <Button type="submit" disabled={isSaving}>
+                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Guardar Cambios
+            </Button>
       </div>
       
       <MonthlySummary userId={userId} />
@@ -352,12 +405,11 @@ function CreateWorkLogDialog({ users, allUserSettings }: { users: UserProfile[],
   useEffect(() => {
     // Reset dependent switches when logType changes
     if (logType === 'particular') {
-        setFormData(prev => ({...prev, hasNight: false, arrivesPrior: false}));
+        setFormData(prev => ({...prev, arrivesPrior: false}));
     }
   }, [logType]);
 
   useEffect(() => {
-    // Reset arrivesPrior if hasNight is turned off
     if (!formData.hasNight) {
         setFormData(prev => ({...prev, arrivesPrior: false}));
     }
@@ -399,12 +451,12 @@ function CreateWorkLogDialog({ users, allUserSettings }: { users: UserProfile[],
         return;
     }
     if (logType === 'particular' && (!formData.date || !formData.startTime || !formData.endTime)) {
-         toast({title: "Error", description: "Fecha, hora de inicio y fin son obligatorias para el tipo 'particular'.", variant: "destructive"});
+         toast({title: "Error", description: "Fecha, hora de inicio y fin son obligatorias para el tipo 'Particular'.", variant: "destructive"});
          setIsLoading(false);
         return;
     }
      if (logType === 'tutorial' && (!formData.startDate || !formData.endDate)) {
-         toast({title: "Error", description: "Fecha de inicio y fin son obligatorias para el tipo 'tutorial'.", variant: "destructive"});
+         toast({title: "Error", description: "Fecha de inicio y fin son obligatorias para el tipo 'Tutorial'.", variant: "destructive"});
          setIsLoading(false);
         return;
     }
@@ -564,8 +616,8 @@ function CreateWorkLogDialog({ users, allUserSettings }: { users: UserProfile[],
                             <Switch id="hasCoordination" name="hasCoordination" checked={formData.hasCoordination} onCheckedChange={(c) => handleSwitchChange('hasCoordination', c)}/>
                             <Label htmlFor="hasCoordination">Coordinación</Label>
                         </div>
-                        {logType === 'tutorial' && (
-                           <div className="flex items-center space-x-2">
+                        {(logType === 'tutorial' || logType === 'particular') && (
+                            <div className="flex items-center space-x-2">
                                 <Switch id="hasNight" name="hasNight" checked={formData.hasNight} onCheckedChange={(c) => handleSwitchChange('hasNight', c)}/>
                                 <Label htmlFor="hasNight">Nocturnidad</Label>
                             </div>
@@ -602,8 +654,8 @@ export default function AdminUsersPage() {
   const usersRef = useMemoFirebase(() => firestore ? collection(firestore, `artifacts/${APP_ID}/public/data/users`) : null, [firestore]);
   
 
-  const { data: requests, isLoading: isLoadingRequests } = useCollection<AccessRequest>(requestsRef);
-  const { data: users, isLoading: isLoadingUsers } = useCollection<UserProfile>(usersRef);
+  const { data: requests, isLoading: isLoadingRequests, error: requestsError } = useCollection<AccessRequest>(requestsRef);
+  const { data: users, isLoading: isLoadingUsers, error: usersError } = useCollection<UserProfile>(usersRef);
 
   useEffect(() => {
     if (!firestore || !users) return;
@@ -643,7 +695,7 @@ export default function AdminUsersPage() {
   }, [firestore, users]);
 
 
-  const pendingRequests = requests?.filter(req => req.status === 'pending');
+  const pendingRequests = useMemo(() => requests?.filter(req => req.status === 'pending'), [requests]);
 
   const handleRequest = async (request: AccessRequest, newStatus: 'approved' | 'rejected') => {
     if (!request.id || !firestore) return;
@@ -652,7 +704,12 @@ export default function AdminUsersPage() {
         
         if (newStatus === 'approved') {
             const allowedUserRef = collection(firestore, `artifacts/${APP_ID}/public/data/allowed_users`);
-            await addDoc(allowedUserRef, { email: request.email });
+            // Check if user already in allowed_users
+            const q = query(allowedUserRef, where("email", "==", request.email));
+            const existing = await getDocs(q);
+            if (existing.empty) {
+                await addDoc(allowedUserRef, { email: request.email });
+            }
             await updateDoc(requestRef, { status: 'approved' });
             toast({ title: "Acceso Aprobado", description: `${request.email} ahora tiene acceso.`});
         } else {
@@ -714,7 +771,7 @@ export default function AdminUsersPage() {
             <p className="text-muted-foreground">Administra usuarios y solicitudes de acceso.</p>
         </div>
         {users && allUserSettings && (
-            <CreateWorkLogDialog users={users} allUserSettings={allUserSettings} />
+            <CreateWorkLogDialog users={users.filter(u => u.email !== ADMIN_EMAIL)} allUserSettings={allUserSettings} />
         )}
       </div>
 
@@ -818,7 +875,7 @@ export default function AdminUsersPage() {
                            <TableRow key={req.id}>
                                <TableCell>{req.firstName} {req.lastName}</TableCell>
                                <TableCell>{req.email}</TableCell>
-                               <TableCell>{req.createdAt ? format(req.createdAt.toDate(), 'dd/MM/yyyy') : '-'}</TableCell>
+                               <TableCell>{req.createdAt ? format(req.createdAt.toDate(), 'dd/MM/yyyy', { locale: es }) : '-'}</TableCell>
                                <TableCell className="text-right space-x-2">
                                    <Button variant="ghost" size="icon" onClick={() => handleRequest(req, 'approved')} title="Aprobar">
                                        <CheckCircle className="h-5 w-5 text-green-500" />
