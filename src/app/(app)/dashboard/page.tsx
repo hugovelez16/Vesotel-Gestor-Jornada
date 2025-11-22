@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle, Loader2, Users, BookOpen, ChevronLeft, ChevronRight, Calendar as CalendarIcon, DollarSign, Clock, Briefcase, Edit } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import type { UserProfile, UserSettings, WorkLog } from "@/lib/types";
-import { collection, query, where, getDocs, doc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { addDays, format, startOfDay, parseISO, getMonth, getYear, isSameMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
@@ -227,40 +227,28 @@ function AdminTimeline() {
         [firestore]
     );
     const { data: users, isLoading: isLoadingUsers } = useCollection<UserProfile>(usersRef);
-
-    const allSettingsRef = useMemoFirebase(() => {
-        if (!firestore || !users) return [];
-        return users.map(u => doc(firestore, `artifacts/${APP_ID}/users/${u.uid}/settings/config`));
-    }, [firestore, users]);
-
-    // This is not a hook, so we fetch manually.
+    
     const [allUserSettings, setAllUserSettings] = useState<Record<string, UserSettings>>({});
+    
     useEffect(() => {
-        if (allSettingsRef.length === 0 || !firestore) return;
+        if (!firestore || !users) return;
+
+        const fetchAllSettings = async () => {
+             const settingsMap: Record<string, UserSettings> = {};
+             
+             for (const user of users) {
+                 const settingsDocRef = doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`);
+                 const docSnap = await getDoc(settingsDocRef);
+                 if (docSnap.exists()) {
+                     settingsMap[user.uid] = docSnap.data() as UserSettings;
+                 }
+             }
+             setAllUserSettings(settingsMap);
+        };
         
-        const fetchSettings = async () => {
-            const settingsMap: Record<string, UserSettings> = {};
-            const userSettingsDocs = await Promise.all(allSettingsRef.map(ref => getDocs(collection(ref.parent))));
-            
-            const settingsDocs = await Promise.all(
-                users?.map(user => getDocs(query(collection(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings`)))) ?? []
-            );
+        fetchAllSettings();
 
-            for (const user of users || []) {
-                const settingsDocRef = doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`);
-                const docSnap = await getDocs(query(collection(settingsDocRef.parent)));
-                if (!docSnap.empty) {
-                     const configDoc = docSnap.docs[0];
-                     if(configDoc.exists()){
-                        settingsMap[user.uid] = configDoc.data() as UserSettings;
-                     }
-                }
-            }
-            setAllUserSettings(settingsMap);
-        }
-        fetchSettings();
-
-    }, [allSettingsRef, firestore, users]);
+    }, [firestore, users]);
 
     const handleLogUpdate = () => {
       setRefreshKey(prev => prev + 1);
