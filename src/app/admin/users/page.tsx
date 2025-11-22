@@ -127,7 +127,7 @@ function MonthlySummary({ userId }: { userId: string }) {
 }
 
 
-function UserDetailContent({ userId }: { userId: string}) {
+function UserDetailContent({ userId, onUserUpdate }: { userId: string, onUserUpdate: () => void }) {
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -206,6 +206,7 @@ function UserDetailContent({ userId }: { userId: string}) {
         title: "Éxito",
         description: "Los datos del usuario han sido actualizados.",
       });
+      onUserUpdate();
 
     } catch (error: any) {
       console.error("Error saving user data:", error);
@@ -645,13 +646,18 @@ export default function AdminUsersPage() {
   
   const [allUserSettings, setAllUserSettings] = useState<UserSettings[]>([]);
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const requestsRef = useMemoFirebase(() => firestore ? collection(firestore, `artifacts/${APP_ID}/public/data/access_requests`) : null, [firestore]);
-  const usersRef = useMemoFirebase(() => firestore ? collection(firestore, `artifacts/${APP_ID}/public/data/users`) : null, [firestore]);
+  const requestsRef = useMemoFirebase(() => firestore ? collection(firestore, `artifacts/${APP_ID}/public/data/access_requests`) : null, [firestore, refreshKey]);
+  const usersRef = useMemoFirebase(() => firestore ? collection(firestore, `artifacts/${APP_ID}/public/data/users`) : null, [firestore, refreshKey]);
   
 
   const { data: requests, isLoading: isLoadingRequests, error: requestsError } = useCollection<AccessRequest>(requestsRef);
   const { data: users, isLoading: isLoadingUsers, error: usersError } = useCollection<UserProfile>(usersRef);
+
+  const handleUserUpdate = () => {
+    setRefreshKey(prev => prev + 1);
+  };
 
   useEffect(() => {
     if (!firestore || !users) return;
@@ -712,6 +718,7 @@ export default function AdminUsersPage() {
             await updateDoc(requestRef, { status: 'rejected' });
             toast({ title: "Acceso Rechazado", description: `La solicitud de ${request.email} ha sido rechazada.`});
         }
+        handleUserUpdate(); // Refresh lists
     } catch(error: any) {
         console.error("Error handling request:", error);
         toast({ title: "Error", description: "No se pudo procesar la solicitud.", variant: "destructive"});
@@ -831,7 +838,7 @@ export default function AdminUsersPage() {
                                       <TableCell colSpan={4} className="p-0">
                                           <Collapsible open={true}>
                                               <CollapsibleContent>
-                                                  <UserDetailContent userId={user.uid} />
+                                                  <UserDetailContent userId={user.uid} onUserUpdate={handleUserUpdate} />
                                               </CollapsibleContent>
                                           </Collapsible>
                                       </TableCell>
@@ -894,3 +901,4 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+
