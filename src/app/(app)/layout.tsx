@@ -1,36 +1,15 @@
 
 "use client";
 
-import { useUser, useFirestore } from "@/firebase";
+import { useUser } from "@/firebase";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import MainNav from "@/components/main-nav";
 import { Loader2 } from "lucide-react";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { ADMIN_EMAIL, APP_ID } from "@/lib/config";
-
-async function checkUserAuthorization(email: string, firestore: any): Promise<boolean> {
-    if (!firestore || !email) return false;
-    
-    if (email === ADMIN_EMAIL) return true; 
-
-    try {
-        const q = query(collection(firestore, `artifacts/${APP_ID}/public/data/allowed_users`), where("email", "==", email));
-        const querySnapshot = await getDocs(q);
-        return !querySnapshot.empty;
-    } catch (error) {
-        console.error("Error checking user authorization:", error);
-        return false;
-    }
-}
-
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
-  const firestore = useFirestore();
   const router = useRouter();
-  const [isAuthorized, setIsAuthorized] = useState(false);
-  const [isAuthorizing, setIsAuthorizing] = useState(true);
 
   useEffect(() => {
     if (isUserLoading) {
@@ -44,25 +23,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // At this point, we have a user. Now we check authorization.
-    checkUserAuthorization(user.email!, firestore).then(isAuth => {
-      if (isAuth) {
-        setIsAuthorized(true);
-      } else {
-        // If not authorized, redirect to the request access page.
-        router.replace('/request-access');
-      }
-      setIsAuthorizing(false);
-    });
+  }, [isUserLoading, user, router]);
 
-  }, [isUserLoading, user, firestore, router]);
-
-  if (isUserLoading || isAuthorizing || !isAuthorized) {
+  // The authorization logic is now handled in the /login page
+  // and the admin layouts. If a user gets here, they are authenticated.
+  // We just show a loading screen until the user object is resolved.
+  if (isUserLoading || !user) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
          <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-muted-foreground">Verificando acceso...</p>
+            <p className="text-muted-foreground">Cargando...</p>
         </div>
       </div>
     );

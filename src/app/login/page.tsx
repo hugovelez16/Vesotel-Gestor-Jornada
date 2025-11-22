@@ -1,59 +1,150 @@
 "use client";
 
-import { useUser, useAuth as useFirebaseAuth } from "@/firebase";
+import { useUser, useAuth as useFirebaseAuth, useFirestore } from "@/firebase";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { VesotelLogo } from "@/components/icons";
-import { signInWithRedirect, GoogleAuthProvider, getRedirectResult } from "firebase/auth";
+import { signInWithRedirect, GoogleAuthProvider, getRedirectResult, signOut } from "firebase/auth";
 import { Loader2 } from "lucide-react";
+import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
+import { APP_ID, ADMIN_EMAIL } from "@/lib/config";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+
+
+const formSchema = z.object({
+  firstName: z.string().min(2, "El nombre es demasiado corto"),
+  lastName: z.string().min(2, "El apellido es demasiado corto"),
+});
+
+
+type LoginState = "initial" | "loading" | "unauthorized" | "request_sent";
 
 export default function LoginPage() {
   const { user, isUserLoading } = useUser();
   const auth = useFirebaseAuth();
+  const firestore = useFirestore();
   const router = useRouter();
-  const [isProcessingLogin, setIsProcessingLogin] = useState(true);
+  const { toast } = useToast();
+
+  const [loginState, setLoginState] = useState<LoginState>("loading");
+
+  // Form for access request
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+    },
+  });
 
   // Handle the redirect result from Google
   useEffect(() => {
-    if (auth) {
+    if (auth && !user) {
       getRedirectResult(auth)
-        .then((result) => {
-          if (result) {
-            // User is signed in.
-            // The onAuthStateChanged observer will handle the user object.
-          }
-        })
         .catch((error) => {
-          // Handle Errors here.
           console.error("Error getting redirect result:", error);
+          toast({ title: "Error de autenticación", description: "No se pudo completar el inicio de sesión.", variant: "destructive" });
         })
-        .finally(() => {
-          setIsProcessingLogin(false);
-        });
-    } else {
-        setIsProcessingLogin(false);
     }
-  }, [auth]);
+  }, [auth, user, toast]);
 
   useEffect(() => {
-    if (!isUserLoading && user) {
-      router.replace("/dashboard");
+    if (isUserLoading) {
+      setLoginState("loading");
+      return;
     }
-  }, [user, isUserLoading, router]);
+
+    if (!user) {
+      setLoginState("initial"); // No user, show login button
+      return;
+    }
+
+    // User is authenticated, now check authorization
+    const checkAuthorization = async () => {
+      if (!firestore || !user.email) {
+          setLoginState("initial"); // Should not happen
+          return;
+      }
+      
+      // 1. Check if admin
+      if (user.email === ADMIN_EMAIL) {
+        router.replace("/dashboard");
+        return;
+      }
+
+      // 2. Check if in allowed_users
+      const allowedUsersQuery = query(collection(firestore, `artifacts/${APP_ID}/public/data/allowed_users`), where("email", "==", user.email));
+      const allowedUsersSnapshot = await getDocs(allowedUsersQuery);
+      if (!allowedUsersSnapshot.empty) {
+        router.replace("/dashboard");
+        return;
+      }
+      
+      // 3. User is not authorized, check if they already sent a request
+      const accessRequestQuery = query(collection(firestore, `artifacts/${APP_ID}/public/data/access_requests`), where("email", "==", user.email), where("status", "==", "pending"));
+      const accessRequestSnapshot = await getDocs(accessRequestQuery);
+      if(!accessRequestSnapshot.empty){
+          setLoginState("request_sent");
+      } else {
+          setLoginState("unauthorized");
+          // Pre-fill the form with Google display name
+          form.reset({
+            firstName: user.displayName?.split(' ')[0] || "",
+            lastName: user.displayName?.split(' ').slice(1).join(' ') || "",
+          });
+      }
+    };
+
+    checkAuthorization();
+  }, [user, isUserLoading, firestore, router, form]);
+
 
   const signInWithGoogle = async () => {
     if(auth) {
-        setIsProcessingLogin(true);
+        setLoginState("loading");
         const provider = new GoogleAuthProvider();
-        // This forces the account selection prompt every time.
-        provider.setCustomParameters({
-          prompt: 'select_account'
-        });
+        provider.setCustomParameters({ prompt: 'select_account' });
         await signInWithRedirect(auth, provider);
     }
   };
+
+  const logout = () => {
+      if(auth) {
+        signOut(auth).then(() => {
+            setLoginState("initial");
+        });
+      }
+  }
+
+  async function onSubmitAccessRequest(values: z.infer<typeof formSchema>) {
+    if (!user || !user.email || !firestore) {
+      toast({ title: "Error", description: "No se ha podido identificar al usuario.", variant: "destructive" });
+      return;
+    }
+    
+    setLoginState("loading");
+    try {
+      await addDoc(collection(firestore, `artifacts/${APP_ID}/public/data/access_requests`), {
+        ...values,
+        email: user.email,
+        status: "pending",
+        createdAt: serverTimestamp(),
+      });
+      setLoginState("request_sent");
+      toast({ title: "Solicitud enviada", description: "Tu solicitud de acceso ha sido enviada para su revisión." });
+    } catch (error: any) {
+      console.error("Error sending access request:", error);
+      toast({ title: "Error", description: error.message || "No se pudo enviar la solicitud. Inténtalo de nuevo.", variant: "destructive" });
+      setLoginState("unauthorized");
+    }
+  }
 
 
   const GoogleIcon = () => (
@@ -65,38 +156,100 @@ export default function LoginPage() {
     </svg>
   );
 
-  const isLoading = isUserLoading || isProcessingLogin;
 
-  if (isLoading) {
+  if (loginState === "loading" || isUserLoading) {
     return (
-        <div className="flex h-screen w-full items-center justify-center bg-background">
-         <div className="flex flex-col items-center gap-4">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-muted-foreground">Iniciando sesión...</p>
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Verificando...</p>
         </div>
       </div>
-    )
+    );
   }
-
-  // Avoid showing login page if user is already logged in and redirecting
-  if (user) return null;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <VesotelLogo className="mx-auto mb-4" />
-          <CardTitle>Bienvenido a Vesotel Jornada</CardTitle>
+          {loginState === "initial" && <CardTitle>Bienvenido a Vesotel Jornada</CardTitle>}
+          {loginState === "unauthorized" && (
+            <>
+              <CardTitle>Acceso Restringido</CardTitle>
+              <CardDescription>Tu cuenta no tiene acceso. Completa el formulario para enviar una solicitud.</CardDescription>
+            </>
+          )}
+          {loginState === "request_sent" && (
+             <>
+              <CardTitle>Solicitud Enviada</CardTitle>
+              <CardDescription>Tu solicitud está pendiente de aprobación. Serás notificado cuando sea revisada.</CardDescription>
+            </>
+          )}
         </CardHeader>
-        <CardContent>
-          <Button
-            className="w-full"
-            onClick={signInWithGoogle}
-            disabled={isLoading}
-          >
-            <GoogleIcon /> Iniciar sesión con Google
-          </Button>
-        </CardContent>
+        
+        {loginState === "initial" && (
+          <CardContent>
+            <Button
+              className="w-full"
+              onClick={signInWithGoogle}
+            >
+              <GoogleIcon /> Iniciar sesión con Google
+            </Button>
+          </CardContent>
+        )}
+
+        {loginState === "unauthorized" && (
+           <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmitAccessRequest)}>
+              <CardContent className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nombre</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Tu nombre" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Apellidos</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Tus apellidos" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <Input value={user?.email ?? ''} disabled />
+                </FormItem>
+              </CardContent>
+              <CardFooter className="flex flex-col gap-4">
+                <Button type="submit" className="w-full">
+                  Solicitar Acceso
+                </Button>
+                <Button variant="ghost" className="w-full" type="button" onClick={logout}>Usar otra cuenta</Button>
+              </CardFooter>
+            </form>
+          </Form>
+        )}
+
+        {(loginState === "request_sent") && (
+            <CardFooter className="flex flex-col gap-4">
+                <Button variant="ghost" className="w-full" type="button" onClick={logout}>Usar otra cuenta</Button>
+            </CardFooter>
+        )}
+
       </Card>
     </div>
   );
