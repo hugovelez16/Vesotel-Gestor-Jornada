@@ -150,14 +150,13 @@ function UserDetailContent({ userId }: { userId: string}) {
 
   useEffect(() => {
     let data: Partial<UserProfile & UserSettings> = {};
-    if (profile && settings) {
-        data = { ...profile, ...settings };
-        setFormData(data);
-    } else if(profile && !settings) {
-      setFormData(prev => ({...prev, ...profile}));
-    } else if (settings && !profile) {
-      setFormData(prev => ({...prev, ...settings}));
+    if (profile) {
+        data = { ...data, ...profile };
     }
+    if (settings) {
+        data = { ...data, ...settings };
+    }
+    setFormData(data);
   }, [profile, settings]);
 
 
@@ -185,9 +184,10 @@ function UserDetailContent({ userId }: { userId: string}) {
     const profileData: Partial<UserProfile> = {
       firstName: formData.firstName,
       lastName: formData.lastName,
-      email: profile?.email, // email should not change
+      email: profile?.email,
       uid: userId,
-      type: 'user_registry'
+      type: 'user_registry',
+      lastLogin: profile?.lastLogin,
     };
 
     const settingsData: Partial<UserSettings> = {
