@@ -172,7 +172,7 @@ function UserDetailContent({ userId }: { userId: string}) {
     const checked = (e.target as HTMLInputElement).checked;
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : type === 'number' ? Number(value) : value
+      [name]: type === 'checkbox' ? checked : type === 'number' ? parseFloat(value) : value
     }));
   };
 
@@ -189,11 +189,11 @@ function UserDetailContent({ userId }: { userId: string}) {
     const settingsData: Partial<UserSettings> = {
       firstName: formData.firstName,
       lastName: formData.lastName,
-      hourlyRate: formData.hourlyRate,
-      dailyRate: formData.dailyRate,
-      coordinationRate: formData.coordinationRate,
-      nightRate: formData.nightRate,
-      isGross: formData.isGross,
+      hourlyRate: formData.hourlyRate || 0,
+      dailyRate: formData.dailyRate || 0,
+      coordinationRate: formData.coordinationRate || 0,
+      nightRate: formData.nightRate || 0,
+      isGross: formData.isGross || false,
     };
     
     try {
@@ -316,11 +316,11 @@ function UserDetailContent({ userId }: { userId: string}) {
                 </div>
                  <div className="space-y-2">
                   <Label htmlFor="coordinationRate">Coordinación (€)</Label>
-                  <Input id="coordinationRate" name="coordinationRate" type="number" step="0.01" value={formData.coordinationRate ?? 10} onChange={handleInputChange} />
+                  <Input id="coordinationRate" name="coordinationRate" type="number" step="0.01" value={formData.coordinationRate ?? 0} onChange={handleInputChange} />
                 </div>
                  <div className="space-y-2">
                   <Label htmlFor="nightRate">Nocturnidad (€)</Label>
-                  <Input id="nightRate" name="nightRate" type="number" step="0.01" value={formData.nightRate ?? 30} onChange={handleInputChange} />
+                  <Input id="nightRate" name="nightRate" type="number" step="0.01" value={formData.nightRate ?? 0} onChange={handleInputChange} />
                 </div>
                 <div className="flex items-center space-x-2 pt-6 sm:col-span-2">
                   <Switch id="isGross" name="isGross" checked={formData.isGross ?? false} onCheckedChange={(checked) => setFormData(p => ({...p, isGross: checked}))} />
@@ -894,5 +894,3 @@ export default function AdminUsersPage() {
     </div>
   );
 }
-
-    

@@ -1,4 +1,5 @@
 
+
 "use client"
 import { useUser, useAuth as useFirebaseAuth, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
@@ -68,11 +69,11 @@ export default function ProfilePage() {
         const newSettingsData: Partial<UserSettings> = {
             firstName: newFirstName,
             lastName: newLastName,
-            hourlyRate: Number(formData.get("hourlyRate")),
-            dailyRate: Number(formData.get("dailyRate")),
-            coordinationRate: Number(formData.get("coordinationRate")),
-            nightRate: Number(formData.get("nightRate")),
-            isGross: formData.get("isGross") === "on",
+            hourlyRate: Number(formData.get("hourlyRate")) || 0,
+            dailyRate: Number(formData.get("dailyRate")) || 0,
+            coordinationRate: Number(formData.get("coordinationRate")) || 0,
+            nightRate: Number(formData.get("nightRate")) || 0,
+            isGross: formData.get("isGross") === "on" || false,
         };
 
         const newProfileData: Partial<UserProfile> = {
@@ -156,11 +157,11 @@ export default function ProfilePage() {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="coordinationRate">Coordinación (€)</Label>
-                            <Input id="coordinationRate" name="coordinationRate" type="number" step="0.01" defaultValue={settings?.coordinationRate ?? 10} />
+                            <Input id="coordinationRate" name="coordinationRate" type="number" step="0.01" defaultValue={settings?.coordinationRate ?? 0} />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="nightRate">Nocturnidad (€)</Label>
-                            <Input id="nightRate" name="nightRate" type="number" step="0.01" defaultValue={settings?.nightRate ?? 30} />
+                            <Input id="nightRate" name="nightRate" type="number" step="0.01" defaultValue={settings?.nightRate ?? 0} />
                         </div>
                         <div className="flex items-center space-x-2 md:col-span-2">
                              <Switch id="isGross" name="isGross" defaultChecked={settings?.isGross ?? false} />
@@ -179,5 +180,3 @@ export default function ProfilePage() {
         </div>
     );
 }
-
-    
