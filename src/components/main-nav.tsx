@@ -36,13 +36,14 @@ import { useState, useEffect } from "react";
 import { doc } from "firebase/firestore";
 import type { UserProfile } from "@/lib/types";
 
-const mainNavItems = [
+const userNavItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/list", label: "Registros", icon: List },
   { href: "/calendar", label: "Calendario", icon: Calendar },
 ];
 
 const adminNavItems = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/users", label: "Usuarios", icon: Users },
 ];
 
@@ -78,9 +79,11 @@ export default function MainNav() {
         signOut(auth);
     }
   }
+  
+  const currentNavItems = isAdmin ? adminNavItems : userNavItems;
 
   const NavLinks = ({ onClick }: { onClick?: () => void }) => (
-    [...(isAdmin ? adminNavItems : []), ...mainNavItems].map((item) => {
+    currentNavItems.map((item) => {
       const isActive = pathname === item.href || (item.href === "/admin/users" && pathname.startsWith("/admin/users"));
       return (
         <Link
