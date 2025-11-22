@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import Link from "next/link";
@@ -57,7 +58,7 @@ export default function MainNav() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const profileRef = useMemoFirebase(
-    () => (user && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, `user_${user.uid}`) : null,
+    () => (user && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.uid) : null,
     [firestore, user]
   );
   const { data: profile } = useDoc<UserProfile>(profileRef);
