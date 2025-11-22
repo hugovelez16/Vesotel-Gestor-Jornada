@@ -16,7 +16,8 @@ import {
   Eye,
   Menu,
   X,
-  Briefcase
+  Briefcase,
+  AreaChart
 } from "lucide-react";
 import { VesotelLogo } from "./icons";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -43,8 +44,9 @@ const userNavItems = [
 ];
 
 const adminNavItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/users", label: "Usuarios", icon: Users },
+    { href: "/dashboard", label: "Timeline", icon: Calendar },
+    { href: "/admin/dashboard", label: "Dashboard", icon: AreaChart },
+    { href: "/admin/users", label: "Usuarios", icon: Users },
 ];
 
 export default function MainNav() {
@@ -84,7 +86,7 @@ export default function MainNav() {
 
   const NavLinks = ({ onClick }: { onClick?: () => void }) => (
     currentNavItems.map((item) => {
-      const isActive = pathname === item.href || (item.href === "/admin/users" && pathname.startsWith("/admin/users"));
+      const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
       return (
         <Link
           key={item.href}
