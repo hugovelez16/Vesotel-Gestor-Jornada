@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { calculateEarnings } from "@/lib/calculations";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { useParams } from "next/navigation";
 
 
 function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkLog | null, isOpen: boolean, onOpenChange: (open: boolean) => void }) {
@@ -465,8 +466,9 @@ function UserWorkLogs({ userId, userSettings }: { userId: string, userSettings: 
 }
 
 
-export default function UserRecordsPage({ params }: { params: { userId: string } }) {
-  const { userId } = params;
+export default function UserRecordsPage() {
+  const params = useParams();
+  const userId = params.userId as string;
   const firestore = useFirestore();
 
   const userProfileRef = useMemoFirebase(
