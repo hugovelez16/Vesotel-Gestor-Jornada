@@ -6,7 +6,7 @@ import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { VesotelLogo } from "@/components/icons";
-import { signInWithRedirect, GoogleAuthProvider, getRedirectResult, signOut } from "firebase/auth";
+import { signInWithPopup, GoogleAuthProvider, getRedirectResult, signOut } from "firebase/auth";
 import { Loader2 } from "lucide-react";
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
 import { APP_ID, ADMIN_EMAIL } from "@/lib/config";
@@ -44,16 +44,18 @@ export default function LoginPage() {
     },
   });
 
-  // Handle the redirect result from Google
+  // This effect handles the redirect result, but with signInWithPopup it's less critical
   useEffect(() => {
-    if (auth && !user) {
+    if (auth && !user && loginState === 'loading') {
       getRedirectResult(auth)
         .catch((error) => {
-          console.error("Error getting redirect result:", error);
-          toast({ title: "Error de autenticación", description: "No se pudo completar el inicio de sesión.", variant: "destructive" });
+          if (error.code !== 'auth/no-redirect-operation') {
+             console.error("Error getting redirect result:", error);
+             toast({ title: "Error de autenticación", description: "No se pudo completar el inicio de sesión.", variant: "destructive" });
+          }
         })
     }
-  }, [auth, user, toast]);
+  }, [auth, user, toast, loginState]);
 
   useEffect(() => {
     if (isUserLoading) {
@@ -111,7 +113,18 @@ export default function LoginPage() {
         setLoginState("loading");
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
-        await signInWithRedirect(auth, provider);
+        try {
+            await signInWithPopup(auth, provider);
+            // The useEffect hook will handle the redirect after state update
+        } catch (error: any) {
+            console.error("Error with signInWithPopup:", error);
+            toast({
+                title: "Error de inicio de sesión",
+                description: "No se pudo iniciar sesión con Google. Por favor, inténtalo de nuevo.",
+                variant: "destructive"
+            });
+            setLoginState("initial");
+        }
     }
   };
 
