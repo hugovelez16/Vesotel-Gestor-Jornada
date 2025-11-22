@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { APP_ID } from "@/lib/config";
 import { FormEvent, useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
@@ -66,7 +66,6 @@ export default function ProfilePage() {
         const newLastName = formData.get("lastName") as string;
         
         const newSettingsData: Partial<UserSettings> = {
-            userId: user.uid,
             firstName: newFirstName,
             lastName: newLastName,
             hourlyRate: Number(formData.get("hourlyRate")),
@@ -77,16 +76,11 @@ export default function ProfilePage() {
         };
 
         const newProfileData: Partial<UserProfile> = {
-            uid: user.uid,
-            email: user.email!,
             firstName: newFirstName,
             lastName: newLastName,
-            lastLogin: serverTimestamp() as any,
-            type: 'user_registry'
         };
 
         try {
-            
             await Promise.all([
               setDoc(profileRef, newProfileData, { merge: true }),
               setDoc(settingsRef, newSettingsData, { merge: true })
@@ -185,3 +179,5 @@ export default function ProfilePage() {
         </div>
     );
 }
+
+    

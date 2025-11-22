@@ -178,36 +178,29 @@ function UserDetailContent({ userId }: { userId: string}) {
 
   const handleFormSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!firestore || !userId) return;
+    if (!firestore || !userId || !userProfileRef || !userSettingsRef) return;
     setIsSaving(true);
 
     const profileData: Partial<UserProfile> = {
       firstName: formData.firstName,
       lastName: formData.lastName,
-      email: profile?.email,
-      uid: userId,
-      type: 'user_registry',
-      lastLogin: profile?.lastLogin,
     };
 
     const settingsData: Partial<UserSettings> = {
+      firstName: formData.firstName,
+      lastName: formData.lastName,
       hourlyRate: formData.hourlyRate,
       dailyRate: formData.dailyRate,
       coordinationRate: formData.coordinationRate,
       nightRate: formData.nightRate,
       isGross: formData.isGross,
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      userId: userId
     };
     
     try {
-      if(userProfileRef) {
-        await setDoc(userProfileRef, profileData, { merge: true });
-      }
-      if(userSettingsRef) {
-        await setDoc(userSettingsRef, settingsData, { merge: true });
-      }
+      await Promise.all([
+        setDoc(userProfileRef, profileData, { merge: true }),
+        setDoc(userSettingsRef, settingsData, { merge: true }),
+      ]);
 
       toast({
         title: "Éxito",
@@ -901,3 +894,5 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+
+    
