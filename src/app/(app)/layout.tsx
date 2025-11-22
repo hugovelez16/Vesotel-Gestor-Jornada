@@ -1,44 +1,62 @@
 
 "use client";
 
-import { useUser, useAuth as useFirebaseAuth } from "@/firebase";
+import { useUser, useFirestore } from "@/firebase";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import MainNav from "@/components/main-nav";
 import { Loader2 } from "lucide-react";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { ADMIN_EMAIL, APP_ID } from "@/lib/config";
 
-// You can create this function or similar to check for authorization
-async function checkUserAuthorization(email: string): Promise<boolean> {
-    // In a real app, you'd check against a DB or an API
-    // For now, let's assume a hardcoded admin and a fetch to a list of allowed users
-    if (email === "hugo@vesotel.com") return true; 
+async function checkUserAuthorization(email: string, firestore: any): Promise<boolean> {
+    if (!firestore || !email) return false;
     
-    // This is a placeholder. You'd replace this with a real check.
-    // For example, fetching from a 'allowed_users' collection in Firestore.
-    return true; 
+    if (email === ADMIN_EMAIL) return true; 
+
+    try {
+        const q = query(collection(firestore, `artifacts/${APP_ID}/public/data/allowed_users`), where("email", "==", email));
+        const querySnapshot = await getDocs(q);
+        return !querySnapshot.empty;
+    } catch (error) {
+        console.error("Error checking user authorization:", error);
+        return false;
+    }
 }
 
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
   const router = useRouter();
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isAuthorizing, setIsAuthorizing] = useState(true);
 
   useEffect(() => {
     if (!isUserLoading) {
       if (!user) {
         router.replace("/login");
+        return;
       }
-      // Add your own authorization logic here if needed
-      // For example, if you have roles or specific permissions
+      
+      setIsAuthorizing(true);
+      checkUserAuthorization(user.email!, firestore).then(isAuth => {
+        if (!isAuth) {
+          router.replace('/request-access');
+        } else {
+          setIsAuthorized(true);
+        }
+        setIsAuthorizing(false);
+      });
     }
-  }, [isUserLoading, user, router]);
+  }, [isUserLoading, user, firestore, router]);
 
-  if (isUserLoading || !user) {
+  if (isUserLoading || isAuthorizing || !isAuthorized) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
          <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-muted-foreground">Autenticando...</p>
+            <p className="text-muted-foreground">Verificando acceso...</p>
         </div>
       </div>
     );

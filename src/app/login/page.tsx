@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useUser, useAuth as useFirebaseAuth } from "@/firebase";
@@ -48,6 +47,10 @@ export default function LoginPage() {
     if(auth) {
         setIsProcessingLogin(true);
         const provider = new GoogleAuthProvider();
+        // This forces the account selection prompt every time.
+        provider.setCustomParameters({
+          prompt: 'select_account'
+        });
         await signInWithRedirect(auth, provider);
     }
   };

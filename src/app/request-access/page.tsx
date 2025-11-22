@@ -14,8 +14,9 @@ import { Input } from "@/components/ui/input";
 import { VesotelLogo } from "@/components/icons";
 import { useToast } from "@/hooks/use-toast";
 import { collection, addDoc, serverTimestamp, query, where, getDocs } from "firebase/firestore";
-import { APP_ID } from "@/lib/config";
+import { APP_ID, ADMIN_EMAIL } from "@/lib/config";
 import { signOut } from "firebase/auth";
+import { Loader2 } from "lucide-react";
 
 const formSchema = z.object({
   firstName: z.string().min(2, "El nombre es demasiado corto"),
@@ -32,34 +33,45 @@ export default function RequestAccessPage() {
   const [requestSent, setRequestSent] = useState(false);
   
   // This state will be derived from checking user's status
-  const [isAllowed, setIsAllowed] = useState(false);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(true);
 
 
   useEffect(() => {
-    if (!isUserLoading && user) {
-        // A simple check. In a real app this might involve checking a custom claim or a document in Firestore.
+    if (!isUserLoading && user && firestore) {
         const checkAccess = async () => {
-            if(user.email === "hugo@vesotel.com"){
-                 setIsAllowed(true);
+            // 1. Check if user is admin
+            if(user.email === ADMIN_EMAIL){
                  router.replace("/dashboard");
                  return;
             }
-            const q = query(collection(firestore, `artifacts/${APP_ID}/public/data/allowed_users`), where("email", "==", user.email));
-            const querySnapshot = await getDocs(q);
-            if(!querySnapshot.empty) {
-                setIsAllowed(true);
+
+            // 2. Check if user is in allowed_users
+            const allowedUsersQuery = query(collection(firestore, `artifacts/${APP_ID}/public/data/allowed_users`), where("email", "==", user.email));
+            const allowedUsersSnapshot = await getDocs(allowedUsersQuery);
+            if(!allowedUsersSnapshot.empty) {
                 router.replace("/dashboard");
-            } else {
-                 const reqQ = query(collection(firestore, `artifacts/${APP_ID}/public/data/access_requests`), where("email", "==", user.email));
-                 const reqSnap = await getDocs(reqQ);
-                 if(!reqSnap.empty){
-                     setRequestSent(true);
-                 }
+                return;
             }
+
+            // 3. Check if user has a pending request
+            const accessRequestQuery = query(collection(firestore, `artifacts/${APP_ID}/public/data/access_requests`), where("email", "==", user.email));
+            const accessRequestSnapshot = await getDocs(accessRequestQuery);
+            let hasPendingRequest = false;
+            accessRequestSnapshot.forEach(doc => {
+                if(doc.data().status === 'pending') {
+                    hasPendingRequest = true;
+                }
+            });
+
+            if(hasPendingRequest){
+                setRequestSent(true);
+            }
+            setIsCheckingStatus(false);
         }
         checkAccess();
 
     } else if (!isUserLoading && !user) {
+        // If there's no user and we're not loading, they need to log in.
         router.replace("/login");
     }
   }, [user, isUserLoading, router, firestore]);
@@ -67,17 +79,28 @@ export default function RequestAccessPage() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      firstName: "",
-      lastName: "",
+      firstName: user?.displayName?.split(' ')[0] || "",
+      lastName: user?.displayName?.split(' ').slice(1).join(' ') || "",
     },
   });
 
+   useEffect(() => {
+    if (user) {
+      form.reset({
+        firstName: user.displayName?.split(' ')[0] || "",
+        lastName: user.displayName?.split(' ').slice(1).join(' ') || "",
+      });
+    }
+  }, [user, form]);
+
   const logout = () => {
-      signOut(auth);
+      if(auth) {
+        signOut(auth);
+      }
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!user || !user.email) {
+    if (!user || !user.email || !firestore) {
       toast({ title: "Error", description: "No se ha podido identificar al usuario.", variant: "destructive" });
       return;
     }
@@ -100,8 +123,21 @@ export default function RequestAccessPage() {
     }
   }
 
-  if (isUserLoading || (!isUserLoading && isAllowed)) {
-    return <div className="flex h-screen items-center justify-center">Cargando...</div>;
+  if (isUserLoading || isCheckingStatus) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+         <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Comprobando estado...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    // This case should theoretically be handled by the useEffect redirecting to /login,
+    // but it's a good safeguard.
+    return null; 
   }
   
   return (
@@ -155,14 +191,14 @@ export default function RequestAccessPage() {
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
                   {isSubmitting ? "Enviando..." : "Solicitar Acceso"}
                 </Button>
-                <Button variant="ghost" className="w-full" onClick={logout}>Cerrar sesión</Button>
+                <Button variant="ghost" className="w-full" type="button" onClick={logout}>Cerrar sesión</Button>
               </CardFooter>
             </form>
           </Form>
         )}
          {requestSent && (
             <CardFooter className="flex flex-col gap-4">
-                <Button variant="outline" className="w-full" onClick={logout}>Cerrar sesión</Button>
+                <Button variant="outline" className="w-full" type="button" onClick={logout}>Cerrar sesión</Button>
             </CardFooter>
         )}
       </Card>
