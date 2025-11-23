@@ -6,7 +6,7 @@ Vesotel Jornada es una aplicación web moderna diseñada para facilitar el segui
 
 | Lista de Registros | Resumenes Mensuales | Panel de Administración (Timeline) |
 | :---: | :---: | :---: |
-| <img width="1913" height="984" alt="Captura de pantalla 2025-11-23 173109" src="https://github.com/user-attachments/assets/225e41b5-adb5-4008-b1f0-38a5a359aece" /> | ![Vesotel Jornada Calendario](<img width="1917" height="992" alt="Captura de pantalla 2025-11-23 172932" src="https://github.com/user-attachments/assets/8abc3b01-def4-49a0-9464-e7e785f93faa" />) | ![Vesotel Jornada Admin](<img width="1697" height="981" alt="Captura de pantalla 2025-11-23 172802" src="https://github.com/user-attachments/assets/e0393db7-2766-4c9d-87d5-494b9cdc2f12" />) |
+| <img width="1913" height="984" alt="Captura de pantalla 2025-11-23 173109" src="https://github.com/user-attachments/assets/225e41b5-adb5-4008-b1f0-38a5a359aece" /> | <img width="1917" height="992" alt="Captura de pantalla 2025-11-23 172932" src="https://github.com/user-attachments/assets/8abc3b01-def4-49a0-9464-e7e785f93faa" /> | <img width="1697" height="981" alt="Captura de pantalla 2025-11-23 172802" src="https://github.com/user-attachments/assets/e0393db7-2766-4c9d-87d5-494b9cdc2f12" /> |
 
 
 ## ✨ Características Principales
