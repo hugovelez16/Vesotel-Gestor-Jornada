@@ -33,7 +33,7 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./out/      # Carpeta generada por Next.js
-          server-dir: /httpdocs/  # Carpeta destino en Plesk
+          server-dir: /hugo.vesotel.com/  # Carpeta destino en Plesk
           exclude: |
             **/.git*
             **/.git*/**
