@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { ADMIN_EMAIL, APP_ID } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Loader2, Users, BookOpen, ChevronLeft, ChevronRight, Calendar as CalendarIcon, DollarSign, Clock, Briefcase, Edit, User, FileText } from "lucide-react";
@@ -48,13 +48,29 @@ function UserDashboard() {
         tutorialDays: 0,
         particularHours: 0,
     });
+    const [refreshKey, setRefreshKey] = useState(0);
 
     const workLogsRef = useMemoFirebase(
         () => user ? collection(firestore, `artifacts/${APP_ID}/users/${user.uid}/work_logs`) : null,
-        [user, firestore]
+        [user, firestore, refreshKey]
     );
+     const userProfileRef = useMemoFirebase(
+        () => (user && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.uid) : null,
+        [firestore, user]
+    );
+    const userSettingsRef = useMemoFirebase(
+        () => (user && firestore) ? doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`) : null,
+        [firestore, user]
+    );
+    
+    const { data: profile, isLoading: isLoadingProfile } = useDoc<UserProfile>(userProfileRef);
+    const { data: settings, isLoading: isLoadingSettings } = useDoc<UserSettings>(userSettingsRef);
 
     const { data: entries, isLoading } = useCollection<WorkLog>(workLogsRef);
+    
+    const handleLogUpdate = () => {
+        setRefreshKey(prev => prev + 1);
+    };
 
     useEffect(() => {
         if (!entries) return;
@@ -67,30 +83,23 @@ function UserDashboard() {
         const uniqueDays = new Set<string>();
 
         entries.forEach(entry => {
-            const entryDateStr = entry.type === 'particular' ? entry.date : entry.startDate;
-            if (!entryDateStr) return;
-            
-            const entryDate = parseISO(entryDateStr);
-            const isCurrentMonth = isSameMonth(entryDate, now);
-
-            if(isCurrentMonth) {
-                totalEarnings += (entry.amount || 0);
-            }
-
             if (entry.type === 'particular' && entry.date && isSameMonth(parseISO(entry.date), now)) {
+                totalEarnings += (entry.amount || 0);
                 particularHours += (entry.duration || 0);
                 uniqueDays.add(entry.date);
             } else if (entry.type === 'tutorial' && entry.startDate && entry.endDate) {
                 const start = parseISO(entry.startDate);
                 const end = parseISO(entry.endDate);
+                 // Distribute earnings over the days in the current month
+                const tutorialDuration = differenceInCalendarDays(end, start) + 1;
+                const dailyEarning = tutorialDuration > 0 ? (entry.amount || 0) / tutorialDuration : 0;
                 
                 for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
                     if (isSameMonth(dt, now)) {
+                       totalEarnings += dailyEarning;
+                       tutorialDays += 1;
                        const dayString = format(dt, 'yyyy-MM-dd');
-                       if (!uniqueDays.has(dayString)) { // Avoid double-counting days
-                           tutorialDays += 1;
-                           uniqueDays.add(dayString);
-                       }
+                       uniqueDays.add(dayString);
                     }
                 }
             }
@@ -113,6 +122,18 @@ function UserDashboard() {
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">Resumen de tu actividad laboral del mes actual.</p>
         </div>
+         {profile && settings && (
+             <CreateWorkLogDialog
+                users={[profile]}
+                allUserSettings={[settings]}
+                onLogUpdate={handleLogUpdate}
+            >
+                <Button>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Añadir Registro
+                </Button>
+            </CreateWorkLogDialog>
+         )}
       </div>
       
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -124,7 +145,7 @@ function UserDashboard() {
 
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Registros Recientes</h2>
-        {isLoading ? (
+        {(isLoading || isLoadingProfile || isLoadingSettings) ? (
              <div className="mt-4 rounded-lg border bg-card p-6 text-center">
                  <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />
              </div>
@@ -140,7 +161,7 @@ function UserDashboard() {
                                 <div>
                                     <p className="font-medium">{log.description}</p>
                                     <p className="text-sm text-muted-foreground">
-                                        {log.type === 'particular' && log.date ? format(parseISO(log.date), 'dd MMM yyyy', {locale: es}) : `${format(parseISO(log.startDate!), 'dd MMM', {locale: es})} - ${format(parseISO(log.endDate!), 'dd MMM yyyy', {locale: es})}`}
+                                        {log.type === 'particular' && log.date ? format(parseISO(log.date), 'dd MMM yyyy', {locale: es}) : (log.startDate && log.endDate ? `${format(parseISO(log.startDate), 'dd MMM', {locale: es})} - ${format(parseISO(log.endDate), 'dd MMM yyyy', {locale: es})}` : '')}
                                     </p>
                                 </div>
                             </div>
@@ -182,3 +203,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
