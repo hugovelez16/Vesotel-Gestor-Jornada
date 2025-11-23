@@ -1,8 +1,13 @@
 # Vesotel Jornada - Gestor de Jornadas Laborales
 
-![Vesotel Jornada UI Screenshot](https://placehold.co/800x400?text=Vesotel+Jornada+App)
-
 Vesotel Jornada es una aplicación web moderna diseñada para facilitar el seguimiento y la gestión de las jornadas laborales de los empleados. Permite a los usuarios registrar sus horas de trabajo, ya sean particulares o de tutorial, calcular automáticamente sus ingresos y visualizar su actividad de forma clara y organizada. Incluye un robusto panel de administración para la gestión de usuarios, solicitudes de acceso y una visión global de la actividad de todo el equipo.
+
+## 🖼️ Galería de Capturas
+
+| Dashboard de Usuario | Calendario de Actividad | Panel de Administración (Timeline) |
+| :---: | :---: | :---: |
+| ![Vesotel Jornada Dashboard](https://placehold.co/400x300?text=Dashboard+de+Usuario) | ![Vesotel Jornada Calendario](https://placehold.co/400x300?text=Calendario+de+Actividad) | ![Vesotel Jornada Admin](https://placehold.co/400x300?text=Panel+de+Administración) |
+
 
 ## ✨ Características Principales
 
