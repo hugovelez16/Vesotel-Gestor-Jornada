@@ -259,18 +259,30 @@ function AdminTimeline() {
         if (!firestore || !users) return;
 
         const fetchAllSettings = async () => {
-             const settingsMap: Record<string, UserSettings> = {};
-             
-             const settingsPromises = users.map(user => {
-                 const settingsDocRef = doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`);
-                 return getDoc(settingsDocRef).then(docSnap => {
-                     if (docSnap.exists()) {
-                         settingsMap[user.uid] = docSnap.data() as UserSettings;
-                     }
-                 });
-             });
-             await Promise.all(settingsPromises);
-             setAllUserSettings(settingsMap);
+            const settingsMap: Record<string, UserSettings> = {};
+            
+            const settingsPromises = users.map(async (user) => {
+                const settingsDocRef = doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`);
+                const docSnap = await getDoc(settingsDocRef);
+                if (docSnap.exists()) {
+                    settingsMap[user.uid] = { ...docSnap.data(), userId: user.uid } as UserSettings;
+                } else {
+                    // Create default settings if they don't exist
+                    settingsMap[user.uid] = {
+                        userId: user.uid,
+                        firstName: user.firstName,
+                        lastName: user.lastName,
+                        hourlyRate: 0,
+                        dailyRate: 0,
+                        coordinationRate: 10,
+                        nightRate: 30,
+                        isGross: false,
+                    };
+                }
+            });
+
+            await Promise.all(settingsPromises);
+            setAllUserSettings(settingsMap);
         };
         
         fetchAllSettings();
@@ -391,6 +403,8 @@ function AdminTimeline() {
     const filteredUsers = useMemo(() => users?.filter(u => u.email !== ADMIN_EMAIL), [users]);
     const userSettingsList = useMemo(() => Object.values(allUserSettings), [allUserSettings]);
 
+    const canShowCreateButton = filteredUsers && userSettingsList && userSettingsList.length >= filteredUsers.length;
+
     return (
         <>
             <Card>
@@ -433,9 +447,9 @@ function AdminTimeline() {
                                     <ChevronRight className="h-4 w-4" />
                                 </Button>
                             </div>
-                             {filteredUsers && userSettingsList && (
+                             {canShowCreateButton && (
                                 <CreateWorkLogDialog 
-                                    users={filteredUsers} 
+                                    users={filteredUsers!} 
                                     allUserSettings={userSettingsList} 
                                     onLogUpdate={handleLogUpdate} 
                                 >
@@ -646,3 +660,5 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
+
+    
