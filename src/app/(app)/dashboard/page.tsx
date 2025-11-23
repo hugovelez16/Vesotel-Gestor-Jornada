@@ -64,13 +64,31 @@ function UserDashboard() {
     );
     
     const { data: profile, isLoading: isLoadingProfile } = useDoc<UserProfile>(userProfileRef);
-    const { data: settings, isLoading: isLoadingSettings } = useDoc<UserSettings>(userSettingsRef);
+    const { data: settingsData, isLoading: isLoadingSettings } = useDoc<UserSettings>(userSettingsRef);
 
     const { data: entries, isLoading } = useCollection<WorkLog>(workLogsRef);
     
     const handleLogUpdate = () => {
         setRefreshKey(prev => prev + 1);
     };
+
+    const settings: UserSettings | null = useMemo(() => {
+        if (settingsData) return settingsData;
+        if (profile) {
+            // Create default settings if they don't exist, so the dialog can open
+            return {
+                userId: profile.uid,
+                firstName: profile.firstName,
+                lastName: profile.lastName,
+                hourlyRate: 0,
+                dailyRate: 0,
+                coordinationRate: 10,
+                nightRate: 30,
+                isGross: false,
+            };
+        }
+        return null;
+    }, [settingsData, profile]);
 
     useEffect(() => {
         if (!entries) return;
@@ -203,5 +221,6 @@ export default function DashboardPage() {
     </div>
   );
 }
+
 
     
