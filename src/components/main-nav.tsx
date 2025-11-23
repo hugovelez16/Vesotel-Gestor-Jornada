@@ -46,7 +46,7 @@ const userNavItems = [
 ];
 
 const adminNavItems = [
-    { href: "/admin/dashboard", label: "Timeline", icon: Calendar },
+    { href: "/admin/dashboard", label: "Panel", icon: LayoutDashboard },
     { href: "/admin/users", label: "Usuarios", icon: Users },
 ];
 
@@ -211,4 +211,3 @@ export default function MainNav() {
     </header>
   );
 }
-
