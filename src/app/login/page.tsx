@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useUser, useAuth as useFirebaseAuth, useFirestore } from "@/firebase";
@@ -67,6 +68,13 @@ export default function LoginPage() {
       setLoginState("initial"); // No user, show login button
       return;
     }
+    
+    // If a user is already authenticated, attempt to redirect them.
+    // This handles cases where a logged-in user hits the /login page.
+    if (user && loginState !== "unauthorized" && loginState !== "request_sent") {
+       router.replace("/dashboard");
+    }
+
 
     // User is authenticated, now check authorization
     const checkAuthorization = async () => {
@@ -105,7 +113,7 @@ export default function LoginPage() {
     };
 
     checkAuthorization();
-  }, [user, isUserLoading, firestore, router, form]);
+  }, [user, isUserLoading, firestore, router, form, loginState]);
 
 
   const signInWithGoogle = async () => {
@@ -132,6 +140,7 @@ export default function LoginPage() {
       if(auth) {
         signOut(auth).then(() => {
             setLoginState("initial");
+            // No need to push to /login, user state change will handle UI
         });
       }
   }

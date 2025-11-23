@@ -14,11 +14,13 @@ import { FormEvent, useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { signOut } from "firebase/auth";
 import type { UserProfile, UserSettings } from "@/lib/types";
+import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
     const { user } = useUser();
     const auth = useFirebaseAuth();
     const firestore = useFirestore();
+    const router = useRouter();
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
     
@@ -41,7 +43,9 @@ export default function ProfilePage() {
 
     const logout = () => {
       if (auth) {
-        signOut(auth);
+        signOut(auth).then(() => {
+          router.push('/login');
+        });
       }
     }
     
