@@ -129,7 +129,10 @@ export default function ListPage() {
                   </TableCell>
                   <TableCell>
                     {log.type === 'particular' && log.date 
-                      ? format(parseISO(log.date), 'dd/MM/yyyy') 
+                      ? <div>
+                          <p>{format(parseISO(log.date), 'dd/MM/yyyy')}</p>
+                          <p className="text-xs text-muted-foreground">{log.startTime} - {log.endTime}</p>
+                        </div>
                       : (log.startDate && log.endDate ? `${format(parseISO(log.startDate), 'dd/MM/yy')} - ${format(parseISO(log.endDate), 'dd/MM/yy')}`: '-')}
                   </TableCell>
                   <TableCell className="max-w-[200px] truncate">{log.description}</TableCell>

@@ -192,8 +192,12 @@ function UserDashboard() {
                                 </TableCell>
                                 <TableCell>
                                     {log.type === 'particular' && log.date 
-                                    ? format(parseISO(log.date), 'dd/MM/yyyy') 
-                                    : (log.startDate && log.endDate ? `${format(parseISO(log.startDate), 'dd/MM/yy')} - ${format(parseISO(log.endDate), 'dd/MM/yy')}`: '-')}
+                                        ? <div>
+                                            <p>{format(parseISO(log.date), 'dd/MM/yyyy')}</p>
+                                            <p className="text-xs text-muted-foreground">{log.startTime} - {log.endTime}</p>
+                                          </div>
+                                        : (log.startDate && log.endDate ? `${format(parseISO(log.startDate), 'dd/MM/yy')} - ${format(parseISO(log.endDate), 'dd/MM/yy')}`: '-')
+                                    }
                                 </TableCell>
                                 <TableCell className="max-w-[200px] truncate">{log.description}</TableCell>
                                 <TableCell>{log.duration ? `${log.duration.toFixed(2)}h` : '-'}</TableCell>
@@ -227,19 +231,7 @@ function UserDashboard() {
 
 export default function DashboardPage() {
   const { user, isUserLoading } = useUser();
-  const [isAdminView, setIsAdminView] = useState(adminViewAsAdmin);
-  const isAdmin = user?.email === ADMIN_EMAIL;
   
-  useEffect(() => {
-    const interval = setInterval(() => {
-        if(isAdminView !== adminViewAsAdmin){
-            setIsAdminView(adminViewAsAdmin);
-        }
-    }, 200);
-    return () => clearInterval(interval);
-  },[isAdminView])
-
-
   if (isUserLoading) {
       return (
           <div className="flex h-screen w-full items-center justify-center">
@@ -248,7 +240,5 @@ export default function DashboardPage() {
       )
   }
 
-  const shouldShowAdminView = isAdmin && isAdminView;
-
-  return shouldShowAdminView ? <AdminDashboardPage /> : <UserDashboard />;
+  return <UserDashboard />;
 }
