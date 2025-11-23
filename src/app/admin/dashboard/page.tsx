@@ -613,11 +613,6 @@ function AdminDashboardStats() {
 }
 
 export default function AdminDashboardPage() {
-  const { user } = useUser();
-  const isAdmin = user?.email === ADMIN_EMAIL;
-  
-  if (!isAdmin) return null;
-
   return (
     <div className="space-y-8">
        <div>
@@ -631,4 +626,3 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-

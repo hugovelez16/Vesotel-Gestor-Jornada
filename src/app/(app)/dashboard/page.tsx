@@ -22,6 +22,8 @@ import { Label } from "@/components/ui/label";
 import { EditWorkLogDialog } from "@/app/admin/users/[userId]/records/RecordsClient";
 import { CreateWorkLogDialog } from "@/app/admin/users/page";
 import NumberTicker from "@/components/magicui/number-ticker";
+import AdminDashboardPage from "@/app/admin/dashboard/page";
+import { adminViewAsAdmin } from "@/components/main-nav";
 
 
 const StatCard = ({ title, value, icon: Icon, colorClass = "text-primary", unit }: { title: string, value: number, icon: React.ElementType, colorClass?: string, unit?: string }) => (
@@ -77,6 +79,7 @@ function UserDashboard() {
         if (profile) {
             // Create default settings if they don't exist, so the dialog can open
             return {
+                id: '',
                 userId: profile.uid,
                 firstName: profile.firstName,
                 lastName: profile.lastName,
@@ -134,7 +137,7 @@ function UserDashboard() {
 
 
   return (
-    <>
+    <div className="space-y-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
@@ -197,13 +200,29 @@ function UserDashboard() {
              </div>
         )}
       </div>
-    </>
+    </div>
   );
 }
 
 
 export default function DashboardPage() {
   const { user, isUserLoading } = useUser();
+  const [isAdminView, setIsAdminView] = useState(adminViewAsAdmin);
+  const isAdmin = user?.email === ADMIN_EMAIL;
+  
+  // This is a bit of a hack to force re-render when the view mode changes
+  // A better solution might involve a global state manager (like Zustand or Context)
+  // but for this simple case, we can use a trick with a key or re-check the global var.
+  useEffect(() => {
+    // This is just to listen to changes in the global var
+    const interval = setInterval(() => {
+        if(isAdminView !== adminViewAsAdmin){
+            setIsAdminView(adminViewAsAdmin);
+        }
+    }, 200);
+    return () => clearInterval(interval);
+  },[isAdminView])
+
 
   if (isUserLoading) {
       return (
@@ -213,14 +232,7 @@ export default function DashboardPage() {
       )
   }
 
-  // This page is now only for the user view.
-  // The admin dashboard is at /admin/dashboard
-  return (
-    <div className="space-y-8">
-      <UserDashboard />
-    </div>
-  );
+  const shouldShowAdminView = isAdmin && isAdminView;
+
+  return shouldShowAdminView ? <AdminDashboardPage /> : <UserDashboard />;
 }
-
-
-    

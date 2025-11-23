@@ -47,13 +47,12 @@ const userNavItems = [
 
 const adminNavItems = [
     { href: "/admin/dashboard", label: "Timeline", icon: Calendar },
-    { href: "/admin/dashboard", label: "Dashboard", icon: AreaChart },
     { href: "/admin/users", label: "Usuarios", icon: Users },
 ];
 
 // In-memory state for view mode, as it's a transient UI preference.
 // This avoids complexities of persisting it in localStorage or state management for this simple use case.
-let adminViewAsAdmin = true;
+export let adminViewAsAdmin = true;
 
 export default function MainNav() {
   const { user } = useUser();
