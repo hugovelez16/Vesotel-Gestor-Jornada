@@ -46,7 +46,7 @@ const userNavItems = [
 ];
 
 const adminNavItems = [
-    { href: "/dashboard", label: "Timeline", icon: Calendar },
+    { href: "/admin/dashboard", label: "Timeline", icon: Calendar },
     { href: "/admin/dashboard", label: "Dashboard", icon: AreaChart },
     { href: "/admin/users", label: "Usuarios", icon: Users },
 ];
@@ -96,19 +96,25 @@ export default function MainNav() {
     const newViewMode = !viewAsAdmin;
     adminViewAsAdmin = newViewMode; // Update the in-memory variable
     setViewAsAdmin(newViewMode); // Update the state to trigger re-render
-    router.push('/dashboard'); // Redirect to dashboard on view change
+    
+    // Redirect to the appropriate dashboard on view change
+    if (newViewMode) {
+      router.push('/admin/dashboard'); 
+    } else {
+      router.push('/dashboard');
+    }
   };
   
   // Determine current items based on admin status and view mode
   const currentNavItems = isAdmin && viewAsAdmin ? adminNavItems : userNavItems;
-  const homeHref = isAdmin && viewAsAdmin ? '/dashboard' : '/dashboard';
+  const homeHref = isAdmin && viewAsAdmin ? '/admin/dashboard' : '/dashboard';
 
   const NavLinks = ({ onClick }: { onClick?: () => void }) => (
     currentNavItems.map((item) => {
-      const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+      const isActive = pathname === item.href || (item.href !== '/admin/dashboard' && item.href !== '/dashboard' && pathname.startsWith(item.href));
       return (
         <Link
-          key={item.href}
+          key={item.label}
           href={item.href}
           onClick={onClick}
           className={cn(
@@ -206,3 +212,4 @@ export default function MainNav() {
     </header>
   );
 }
+
