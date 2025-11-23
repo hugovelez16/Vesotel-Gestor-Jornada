@@ -23,6 +23,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { CreateWorkLogDialog } from '@/app/admin/users/page';
 import { EditWorkLogDialog } from '@/app/admin/users/[userId]/records/RecordsClient';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 // Helper function to get initials from a name
@@ -528,7 +529,10 @@ function AdminDashboardStats() {
   
   useEffect(() => {
     if (users && users.length > 0 && !selectedUser) {
-      setSelectedUser(users[0]);
+      const nonAdminUsers = users.filter(u => u.email !== ADMIN_EMAIL);
+      if(nonAdminUsers.length > 0) {
+        setSelectedUser(nonAdminUsers[0]);
+      }
     }
   }, [users, selectedUser]);
   
@@ -548,6 +552,8 @@ function AdminDashboardStats() {
     fetchLogs();
   }, [selectedUser, firestore]);
 
+  const filteredUsers = useMemo(() => users?.filter(u => u.email !== ADMIN_EMAIL), [users]);
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-8 h-[calc(100vh-280px)]">
         {/* Left Column: User List */}
@@ -556,14 +562,14 @@ function AdminDashboardStats() {
             <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5"/> Lista de Usuarios</CardTitle>
           </CardHeader>
           <CardContent className="p-0 flex-grow">
-            <ScrollArea className="h-[calc(100vh-360px)]">
+            <ScrollArea className="h-full">
               {isLoadingUsers ? (
-                <div className="flex justify-center items-center h-full">
+                <div className="flex justify-center items-center h-full p-4">
                   <Loader2 className="h-6 w-6 animate-spin"/>
                 </div>
               ) : (
                 <div className="p-2">
-                  {users?.map(user => (
+                  {filteredUsers?.map(user => (
                     <button
                       key={user.uid}
                       onClick={() => setSelectedUser(user)}
@@ -619,10 +625,20 @@ export default function AdminDashboardPage() {
         <h1 className="text-3xl font-bold tracking-tight">Panel de Administrador</h1>
         <p className="text-muted-foreground">Gestiona usuarios y la actividad de la aplicación.</p>
       </div>
-      <div className="space-y-8">
-        <AdminTimeline />
-        <AdminDashboardStats />
-      </div>
+       <Tabs defaultValue="timeline" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="timeline">Timeline</TabsTrigger>
+          <TabsTrigger value="stats">Estadísticas</TabsTrigger>
+        </TabsList>
+        <TabsContent value="timeline">
+          <AdminTimeline />
+        </TabsContent>
+        <TabsContent value="stats">
+          <AdminDashboardStats />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
+
+    
