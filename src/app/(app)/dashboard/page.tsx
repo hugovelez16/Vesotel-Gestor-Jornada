@@ -21,7 +21,6 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { EditWorkLogDialog } from "@/app/admin/users/[userId]/records/RecordsClient";
 import { CreateWorkLogDialog } from "@/app/admin/users/page";
-import NumberTicker from "@/components/magicui/number-ticker";
 import AdminDashboardPage from "@/app/admin/dashboard/page";
 import { adminViewAsAdmin } from "@/components/main-nav";
 
@@ -34,7 +33,7 @@ const StatCard = ({ title, value, icon: Icon, colorClass = "text-primary", unit 
         </CardHeader>
         <CardContent>
             <div className="flex items-end">
-                <NumberTicker value={value} className="text-2xl font-bold" />
+                <span className="text-2xl font-bold">{value.toFixed(2)}</span>
                 {unit && <span className="text-sm font-medium text-muted-foreground ml-1">{unit}</span>}
             </div>
         </CardContent>
@@ -235,5 +234,3 @@ export default function DashboardPage() {
 
   return shouldShowAdminView ? <AdminDashboardPage /> : <UserDashboard />;
 }
-
-    
