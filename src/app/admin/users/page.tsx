@@ -986,102 +986,6 @@ export function DeleteWorkLogAlert({ log, userId, onLogUpdate }: { log: WorkLog,
     );
 }
 
-
-function CreateUserDialog({ onUserUpdate }: { onUserUpdate: () => void }) {
-    const [open, setOpen] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
-    const [formData, setFormData] = useState({ firstName: '', lastName: '', email: '' });
-    const firestore = useFirestore();
-    const { toast } = useToast();
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleSubmit = async () => {
-        if (!firestore) return;
-        if (!formData.email || !formData.firstName || !formData.lastName) {
-            toast({ title: "Error", description: "Todos los campos son obligatorios.", variant: "destructive" });
-            return;
-        }
-        setIsLoading(true);
-
-        try {
-            const batch = writeBatch(firestore);
-
-            const allowedUsersRef = collection(firestore, `artifacts/${APP_ID}/public/data/allowed_users`);
-            batch.set(doc(allowedUsersRef), { email: formData.email.toLowerCase() });
-
-            const usersRef = collection(firestore, `artifacts/${APP_ID}/public/data/users`);
-            const tempUserId = doc(collection(firestore, 'temp')).id;
-            const userProfileRef = doc(usersRef, tempUserId);
-            
-            const newUserProfile: Partial<UserProfile> = {
-                uid: tempUserId,
-                email: formData.email.toLowerCase(),
-                firstName: formData.firstName,
-                lastName: formData.lastName,
-                type: 'user_registry',
-            };
-            batch.set(userProfileRef, newUserProfile);
-
-            await batch.commit();
-
-            toast({ title: "Usuario Creado", description: `${formData.email} ahora tiene acceso y ha sido añadido a la lista de usuarios.` });
-            setOpen(false);
-            onUserUpdate();
-        } catch (error: any) {
-            console.error("Error creating user:", error);
-            toast({ title: "Error", description: "No se pudo crear el usuario.", variant: "destructive" });
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Crear Usuario
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle>Crear Nuevo Usuario</DialogTitle>
-                    <DialogDescription>
-                        Introduce los datos para dar de alta a un nuevo usuario. Se le concederá acceso inmediatamente.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="firstName" className="text-right">Nombre</Label>
-                        <Input id="firstName" name="firstName" value={formData.firstName} onChange={handleInputChange} className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="lastName" className="text-right">Apellidos</Label>
-                        <Input id="lastName" name="lastName" value={formData.lastName} onChange={handleInputChange} className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="email" className="text-right">Email</Label>
-                        <Input id="email" name="email" type="email" value={formData.email} onChange={handleInputChange} className="col-span-3" />
-                    </div>
-                </div>
-                <DialogFooter>
-                    <DialogClose asChild>
-                        <Button variant="ghost">Cancelar</Button>
-                    </DialogClose>
-                    <Button onClick={handleSubmit} disabled={isLoading}>
-                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Guardar Usuario
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
 export default function AdminUsersPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -1167,7 +1071,7 @@ export default function AdminUsersPage() {
   const renderTableBody = (
     isLoading: boolean,
     data: any[] | null,
-    renderRow: (item: any, index: number) => JSX.Element | (JSX.Element | null)[],
+    renderRow: (item: any, index: number) => (JSX.Element | null)[],
     emptyMessage: string,
     colSpan: number
   ) => {
@@ -1216,7 +1120,6 @@ export default function AdminUsersPage() {
             {users && allUserSettings && users.length > 0 && allUserSettings.length > 0 && (
                 <CreateWorkLogDialog users={users.filter(u => u.email !== ADMIN_EMAIL)} allUserSettings={allUserSettings} onLogUpdate={handleUserUpdate}/>
             )}
-            <CreateUserDialog onUserUpdate={handleUserUpdate} />
         </div>
       </div>
 
@@ -1255,7 +1158,7 @@ export default function AdminUsersPage() {
                     {renderTableBody(
                         isLoading,
                         users,
-                        (user: UserProfile) => [
+                         (user: UserProfile) => [
                             <TableRow key={user.uid} onClick={() => handleRowClick(user.uid)} className="cursor-pointer">
                                 <TableCell>
                                   {user.firstName} {user.lastName}
@@ -1274,7 +1177,7 @@ export default function AdminUsersPage() {
                                   {expandedUserId === user.uid ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                                 </TableCell>
                             </TableRow>,
-                            expandedUserId === user.uid && (
+                            expandedUserId === user.uid ? (
                               <TableRow key={`${user.uid}-details`}>
                                   <TableCell colSpan={4} className="p-0">
                                       <Collapsible open={true}>
@@ -1284,7 +1187,7 @@ export default function AdminUsersPage() {
                                       </Collapsible>
                                   </TableCell>
                               </TableRow>
-                            )
+                            ) : null,
                         ],
                         "No hay usuarios para mostrar.",
                         4
@@ -1341,3 +1244,5 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+
+    
