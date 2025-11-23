@@ -1,10 +1,10 @@
 
 "use client";
 
-import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
+import { collection, doc } from "firebase/firestore";
 import { APP_ID } from "@/lib/config";
-import type { WorkLog } from "@/lib/types";
+import type { WorkLog, UserProfile, UserSettings } from "@/lib/types";
 import {
   Table,
   TableBody,
@@ -14,13 +14,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Loader2 } from "lucide-react";
+import { Loader2, PlusCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { CreateWorkLogDialog } from "@/app/admin/users/page";
 
 
 function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkLog | null, isOpen: boolean, onOpenChange: (open: boolean) => void }) {
@@ -80,13 +82,47 @@ export default function ListPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   const [selectedLog, setSelectedLog] = useState<WorkLog | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const workLogsRef = useMemoFirebase(
     () => user ? collection(firestore, `artifacts/${APP_ID}/users/${user.uid}/work_logs`) : null,
-    [user, firestore]
+    [user, firestore, refreshKey]
   );
   
+  const userProfileRef = useMemoFirebase(
+    () => (user && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.uid) : null,
+    [firestore, user]
+  );
+  const userSettingsRef = useMemoFirebase(
+    () => (user && firestore) ? doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`) : null,
+    [firestore, user]
+  );
+  
+  const { data: profile } = useDoc<UserProfile>(userProfileRef);
+  const { data: settingsData } = useDoc<UserSettings>(userSettingsRef);
+  
   const { data: workLogs, isLoading } = useCollection<WorkLog>(workLogsRef);
+  
+  const handleLogUpdate = () => {
+    setRefreshKey(prev => prev + 1);
+  };
+
+  const settings: UserSettings | null = useMemo(() => {
+    if (settingsData) return settingsData;
+    if (profile) {
+      return {
+        userId: profile.uid,
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        hourlyRate: 0,
+        dailyRate: 0,
+        coordinationRate: 10,
+        nightRate: 30,
+        isGross: false,
+      };
+    }
+    return null;
+  }, [settingsData, profile]);
 
   const sortedWorkLogs = useMemo(() => {
     if (!workLogs) return [];
@@ -104,9 +140,23 @@ export default function ListPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Lista de Registros</h1>
-        <p className="text-muted-foreground">Todos tus registros de trabajo en un solo lugar.</p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Lista de Registros</h1>
+          <p className="text-muted-foreground">Todos tus registros de trabajo en un solo lugar.</p>
+        </div>
+        {profile && settings && (
+          <CreateWorkLogDialog
+            users={[profile]}
+            allUserSettings={[settings]}
+            onLogUpdate={handleLogUpdate}
+          >
+            <Button>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Añadir Registro
+            </Button>
+          </CreateWorkLogDialog>
+        )}
       </div>
       <div className="rounded-lg border bg-card overflow-hidden">
         <Table>

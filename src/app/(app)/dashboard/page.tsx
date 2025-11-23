@@ -79,7 +79,6 @@ function UserDashboard() {
         if (profile) {
             // Create default settings if they don't exist, so the dialog can open
             return {
-                id: '',
                 userId: profile.uid,
                 firstName: profile.firstName,
                 lastName: profile.lastName,
@@ -236,3 +235,5 @@ export default function DashboardPage() {
 
   return shouldShowAdminView ? <AdminDashboardPage /> : <UserDashboard />;
 }
+
+    
