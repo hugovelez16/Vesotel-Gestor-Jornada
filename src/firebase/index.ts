@@ -2,39 +2,40 @@
 
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore'
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
-// IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
   if (!getApps().length) {
-    // Important! initializeApp() is called without any arguments because Firebase App Hosting
-    // integrates with the initializeApp() function to provide the environment variables needed to
-    // populate the FirebaseOptions in production. It is critical that we attempt to call initializeApp()
-    // without arguments.
     let firebaseApp;
-    try {
-      // Attempt to initialize via Firebase App Hosting environment variables
-      firebaseApp = initializeApp();
-    } catch (e) {
-      // Only warn in production because it's normal to use the firebaseConfig to initialize
-      // during development
-      if (process.env.NODE_ENV === "production") {
-        console.warn('Automatic initialization failed. Falling back to firebase config object.', e);
+
+    // Detectamos si estamos en GitHub Actions (CI)
+    // Si estamos en CI, SALTAMOS el intento automático para evitar el error
+    const isCI = process.env.CI === 'true' || process.env.CI === true;
+
+    if (!isCI) {
+      try {
+        // Solo intentamos la inicialización automática si NO estamos en GitHub
+        firebaseApp = initializeApp();
+      } catch (e) {
+        // Si falla (ej. en local), continuamos silenciosamente al fallback
       }
+    }
+
+    // Si la automática no funcionó o nos la saltamos, usamos tu config manual
+    // Esto es lo que hará que funcione en Plesk
+    if (!firebaseApp) {
       firebaseApp = initializeApp(firebaseConfig);
     }
 
     return getSdks(firebaseApp);
   }
 
-  // If already initialized, return the SDKs with the already initialized App
   return getSdks(getApp());
 }
 
 export function getSdks(firebaseApp: FirebaseApp) {
   const auth = getAuth(firebaseApp);
-  // Set the tenant ID if available in the config
   const authDomain = firebaseConfig.authDomain || (getApp().options as any).authDomain;
   if (authDomain?.includes("identity.firebaseapp.com")) {
       const tenantId = authDomain.split('.')[0];
