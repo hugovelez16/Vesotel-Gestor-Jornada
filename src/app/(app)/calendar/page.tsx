@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import type { WorkLog } from '@/lib/types';
 import { collection } from 'firebase/firestore';
@@ -9,72 +9,42 @@ import { APP_ID } from '@/lib/config';
 import { Card, CardContent } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { es } from 'date-fns/locale';
-import { format, parseISO, isSameDay, startOfDay, addDays } from 'date-fns';
+import { 
+    format, 
+    parseISO, 
+    isSameDay, 
+    startOfDay, 
+    addDays, 
+    getDay, 
+    startOfMonth, 
+    endOfMonth,
+    eachDayOfInterval,
+    isWithinInterval,
+    differenceInCalendarDays,
+} from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Loader2, Briefcase } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
-interface DayWithLogs {
-  date: Date;
-  logs: WorkLog[];
+interface CalendarEvent {
+    log: WorkLog;
+    startDate: Date;
+    endDate: Date;
+    startCol: number;
+    span: number;
+    rowIndex: number;
 }
 
-// Custom Day Component to render inside the calendar
-function DayContent({ date, displayMonth }: { date: Date, displayMonth: Date }) {
-    const { user } = useUser();
-    const firestore = useFirestore();
 
-    const workLogsRef = useMemoFirebase(
-        () => user ? collection(firestore, `artifacts/${APP_ID}/users/${user.uid}/work_logs`) : null,
-        [user, firestore]
-    );
-    const { data: workLogs, isLoading } = useCollection<WorkLog>(workLogsRef);
-    
-    const dayLogs = useMemo(() => {
-        if (!workLogs) return [];
-        return workLogs.filter(log => {
-            if (log.type === 'particular' && log.date) {
-                return isSameDay(parseISO(log.date), date);
-            }
-            if (log.type === 'tutorial' && log.startDate && log.endDate) {
-                const start = parseISO(log.startDate);
-                const end = parseISO(log.endDate);
-                // Check if the current date is within the range (inclusive)
-                return date >= start && date <= end;
-            }
-            return false;
-        });
-    }, [workLogs, date]);
-
-    const isDifferentMonth = date.getMonth() !== displayMonth.getMonth();
-
+// Custom Day Component - now only displays the day number
+function DayContent({ date }: { date: Date }) {
     return (
-        <div className={cn(
-            "relative h-full w-full p-1 flex flex-col",
-            isDifferentMonth ? "text-muted-foreground/50" : ""
-        )}>
-            <div className="flex justify-start font-medium text-sm">{format(date, 'd')}</div>
-            <div className="flex-grow mt-1 space-y-1 overflow-hidden">
-                 {isLoading ? (
-                    <div className="flex justify-center items-center h-full">
-                       <Loader2 className="h-3 w-3 animate-spin" />
-                    </div>
-                ) : (
-                    dayLogs.slice(0, 2).map(log => (
-                        <div key={log.id} 
-                             className={cn("w-full h-1.5 rounded-full", {
-                                 "bg-blue-500": log.type === 'particular',
-                                 "bg-purple-500": log.type === 'tutorial',
-                             })}
-                             title={log.description}
-                        ></div>
-                    ))
-                )}
-                {dayLogs.length > 2 && (
-                    <div className="text-xs text-muted-foreground text-center">
-                        +{dayLogs.length - 2} más
-                    </div>
-                )}
+        <div className="relative h-full w-full p-2">
+            <div className={cn(
+                "flex justify-center items-center h-6 w-6 rounded-full",
+                 isSameDay(date, new Date()) && "bg-primary text-primary-foreground"
+            )}>
+                {format(date, 'd')}
             </div>
         </div>
     );
@@ -83,7 +53,11 @@ function DayContent({ date, displayMonth }: { date: Date, displayMonth: Date }) 
 export default function CalendarPage() {
     const { user } = useUser();
     const firestore = useFirestore();
+    const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(startOfDay(new Date()));
+    
+    const calendarRef = useRef<HTMLDivElement>(null);
+    const [gridDimensions, setGridDimensions] = useState({ cellWidth: 0, cellHeight: 0 });
 
     const workLogsRef = useMemoFirebase(
         () => user ? collection(firestore, `artifacts/${APP_ID}/users/${user.uid}/work_logs`) : null,
@@ -91,6 +65,27 @@ export default function CalendarPage() {
     );
     const { data: workLogs, isLoading } = useCollection<WorkLog>(workLogsRef);
     
+     useEffect(() => {
+        const calculateGrid = () => {
+            if (calendarRef.current) {
+                const table = calendarRef.current.querySelector('div[role="grid"]');
+                if (table) {
+                    const cell = table.querySelector('div[role="gridcell"]') as HTMLElement;
+                    if (cell) {
+                        setGridDimensions({
+                            cellWidth: cell.offsetWidth,
+                            cellHeight: cell.offsetHeight,
+                        });
+                    }
+                }
+            }
+        };
+
+        calculateGrid();
+        window.addEventListener('resize', calculateGrid);
+        return () => window.removeEventListener('resize', calculateGrid);
+    }, [workLogs]);
+
     const selectedDayLogs = useMemo(() => {
         if (!workLogs || !selectedDate) return [];
         
@@ -108,48 +103,181 @@ export default function CalendarPage() {
 
     }, [workLogs, selectedDate]);
 
+    const monthEvents = useMemo((): CalendarEvent[] => {
+        if (!workLogs) return [];
+
+        const monthStart = startOfMonth(currentMonth);
+        const monthEnd = endOfMonth(currentMonth);
+        
+        const logsInMonth = workLogs.filter(log => {
+            if (log.type === 'particular' && log.date) {
+                return isWithinInterval(parseISO(log.date), { start: monthStart, end: monthEnd });
+            }
+            if (log.type === 'tutorial' && log.startDate && log.endDate) {
+                const logInterval = { start: parseISO(log.startDate), end: parseISO(log.endDate) };
+                return isWithinInterval(logInterval.start, { start: monthStart, end: monthEnd }) ||
+                       isWithinInterval(logInterval.end, { start: monthStart, end: monthEnd }) ||
+                       isWithinInterval(monthStart, logInterval);
+            }
+            return false;
+        });
+
+        // Add row index to each event to prevent overlapping
+        const eventsWithRows: CalendarEvent[] = [];
+        const daySlots: Record<string, number> = {};
+
+        logsInMonth.sort((a, b) => {
+            const startA = parseISO(a.date || a.startDate!);
+            const startB = parseISO(b.date || b.startDate!);
+            if (startA.getTime() !== startB.getTime()) {
+                return startA.getTime() - startB.getTime();
+            }
+            const durationA = differenceInCalendarDays(parseISO(a.endDate || a.date!), startA);
+            const durationB = differenceInCalendarDays(parseISO(b.endDate || b.date!), startB);
+            return durationB - durationA; // longer events first
+        }).forEach(log => {
+            const startDate = startOfDay(parseISO(log.date || log.startDate!));
+            const endDate = startOfDay(parseISO(log.date || log.endDate!));
+            const eventDays = eachDayOfInterval({start: startDate, end: endDate});
+
+            let rowIndex = 0;
+            // Find the first available row for this event
+            while(eventDays.some(day => daySlots[format(day, 'yyyy-MM-dd')] === rowIndex)) {
+                rowIndex++;
+            }
+            // Occupy the slots
+            eventDays.forEach(day => daySlots[format(day, 'yyyy-MM-dd')] = rowIndex);
+
+
+            let startCol = (getDay(startDate) + 6) % 7; // Monday is 0
+            
+            // If event starts before the current month
+            if (startDate < monthStart) {
+                startCol = 0;
+            }
+
+            const span = differenceInCalendarDays(
+                endDate > monthEnd ? monthEnd : endDate,
+                startDate < monthStart ? monthStart : startDate
+            ) + 1;
+            
+            eventsWithRows.push({
+                log,
+                startDate,
+                endDate,
+                startCol,
+                span: Math.min(span, 7-startCol), // ensure it doesn't overflow the week
+                rowIndex,
+            });
+
+             // Handle multi-week events
+            let remainingSpan = span - (7 - startCol);
+            let weekOffset = 1;
+            while (remainingSpan > 0) {
+                 eventsWithRows.push({
+                    log,
+                    startDate,
+                    endDate,
+                    startCol: 0,
+                    span: Math.min(remainingSpan, 7),
+                    rowIndex: rowIndex,
+                 });
+                 remainingSpan -= 7;
+                 weekOffset++;
+            }
+        });
+        
+        return eventsWithRows;
+
+    }, [workLogs, currentMonth]);
+
+    const getWeekNumber = (date: Date) => {
+      const firstDayOfMonth = startOfMonth(date);
+      const firstDayOfWeek = (getDay(firstDayOfMonth) + 6) % 7;
+      return Math.floor((firstDayOfWeek + date.getDate() - 1) / 7);
+    }
+    
     return (
         <div className="space-y-8">
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">Calendario</h1>
                 <p className="text-muted-foreground">Visualiza tus jornadas laborales por mes.</p>
             </div>
-            <Card className="w-full">
-                <CardContent className="p-2 md:p-6">
-                    <Calendar
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={setSelectedDate}
-                        locale={es}
-                        weekStartsOn={1}
-                        className="p-0"
-                        classNames={{
-                            months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-                            month: "space-y-4 w-full",
-                            table: "w-full border-collapse",
-                            head_row: "flex justify-around border-b",
-                            head_cell: "text-muted-foreground w-full py-2 text-sm font-normal",
-                            row: "flex w-full mt-2",
-                            cell: cn(
-                                "relative w-full h-24 md:h-32 text-center text-sm p-0 focus-within:relative focus-within:z-20",
-                                "[&:has([aria-selected])]:bg-accent [&:has([aria-selected])]:rounded-md"
-                            ),
-                            day: "h-full w-full p-0 font-normal aria-selected:opacity-100 rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-                            day_selected: "bg-accent text-accent-foreground",
-                            day_today: "bg-muted text-foreground font-bold",
-                        }}
-                        components={{ DayContent: DayContent }}
-                    />
-                </CardContent>
-            </Card>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <Card className="w-full md:col-span-2">
+                    <CardContent className="p-2 md:p-6" ref={calendarRef}>
+                        <div className="relative">
+                            <Calendar
+                                mode="single"
+                                selected={selectedDate}
+                                onSelect={setSelectedDate}
+                                month={currentMonth}
+                                onMonthChange={setCurrentMonth}
+                                locale={es}
+                                weekStartsOn={1}
+                                className="p-0"
+                                classNames={{
+                                    months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                                    month: "space-y-4 w-full",
+                                    table: "w-full border-collapse",
+                                    head_row: "flex justify-around border-b",
+                                    head_cell: "text-muted-foreground w-full py-2 text-sm font-normal",
+                                    row: "flex w-full mt-0.5",
+                                    cell: cn(
+                                        "relative w-full h-24 md:h-32 text-left p-0 border-t",
+                                        "focus-within:relative focus-within:z-20"
+                                    ),
+                                    day: cn(
+                                        "h-full w-full p-0 font-normal aria-selected:opacity-100 rounded-none focus:outline-none focus:ring-1 focus:ring-ring focus:z-10",
+                                        "[&:not([aria-selected])]:hover:bg-accent/50"
+                                    ),
+                                    day_selected: "bg-accent text-accent-foreground",
+                                    day_outside: "text-muted-foreground/50",
+                                    day_disabled: "text-muted-foreground opacity-50",
+                                }}
+                                components={{ DayContent: DayContent }}
+                            />
+                            {gridDimensions.cellWidth > 0 && (
+                                 <div className="absolute top-[80px] left-0 right-0 bottom-0 pointer-events-none" style={{ gridTemplateColumns: 'repeat(7, 1fr)', gridTemplateRows: 'repeat(6, 1fr)' }}>
+                                    {monthEvents.map((event, index) => {
+                                         const weekNumber = getWeekNumber(event.startDate);
+                                         const topOffset = weekNumber * (gridDimensions.cellHeight + 2); // 2px for row margin
+                                         const eventTop = 40 + event.rowIndex * 24;
 
-             {selectedDate && (
-                <div>
+                                        return (
+                                            <div
+                                                key={`${event.log.id}-${index}`}
+                                                className={cn(
+                                                    "absolute h-5 rounded-md px-2 py-0.5 text-xs text-white pointer-events-auto cursor-pointer overflow-hidden",
+                                                    {
+                                                        "bg-blue-500 hover:bg-blue-600": event.log.type === 'particular',
+                                                        "bg-purple-500 hover:bg-purple-600": event.log.type === 'tutorial',
+                                                    }
+                                                )}
+                                                style={{
+                                                    top: `${topOffset + eventTop}px`,
+                                                    left: `calc(${(event.startCol / 7) * 100}% + 4px)`,
+                                                    width: `calc(${(event.span / 7) * 100}% - 8px)`,
+                                                }}
+                                                onClick={() => setSelectedDate(event.startDate)}
+                                                title={event.log.description}
+                                            >
+                                                <span className="truncate">{event.log.description}</span>
+                                            </div>
+                                        )
+                                    })}
+                                 </div>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <div className="md:col-span-1">
                     <h2 className="text-xl font-semibold mb-4">
-                        Registros para el {format(selectedDate, "PPP", { locale: es })}
+                        Registros para {selectedDate ? format(selectedDate, "PPP", { locale: es }) : '...'}
                     </h2>
                      {isLoading ? (
-                         <div className="flex justify-center items-center h-32">
+                         <div className="flex justify-center items-center h-64">
                              <Loader2 className="h-6 w-6 animate-spin text-primary" />
                          </div>
                      ) : selectedDayLogs.length > 0 ? (
@@ -182,14 +310,15 @@ export default function CalendarPage() {
                             ))}
                          </div>
                      ) : (
-                         <div className="text-center text-muted-foreground py-10">
+                         <div className="text-center text-muted-foreground py-10 border rounded-lg bg-card">
                              <p>No hay registros para este día.</p>
                          </div>
                      )}
                 </div>
-            )}
+            </div>
         </div>
     );
 }
+
 
     
