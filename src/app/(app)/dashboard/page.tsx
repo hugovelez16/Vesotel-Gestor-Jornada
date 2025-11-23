@@ -5,25 +5,17 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
 import { ADMIN_EMAIL, APP_ID } from "@/lib/config";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Loader2, Users, BookOpen, ChevronLeft, ChevronRight, Calendar as CalendarIcon, DollarSign, Clock, Briefcase, Edit, User, FileText } from "lucide-react";
+import { PlusCircle, Loader2, BookOpen, Clock, Briefcase, DollarSign } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import type { UserProfile, UserSettings, WorkLog } from "@/lib/types";
-import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
-import { addDays, format, startOfDay, parseISO, getMonth, getYear, isSameMonth, differenceInCalendarDays } from 'date-fns';
+import { collection, doc } from "firebase/firestore";
+import { format, isSameMonth, parseISO, differenceInCalendarDays } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { EditWorkLogDialog } from "@/app/admin/users/[userId]/records/RecordsClient";
 import { CreateWorkLogDialog } from "@/app/admin/users/page";
 import AdminDashboardPage from "@/app/admin/dashboard/page";
 import { adminViewAsAdmin } from "@/components/main-nav";
-
+import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 
 const StatCard = ({ title, value, icon: Icon, colorClass = "text-primary", unit }: { title: string, value: number, icon: React.ElementType, colorClass?: string, unit?: string }) => (
     <Card>
@@ -67,7 +59,7 @@ function UserDashboard() {
     const { data: profile, isLoading: isLoadingProfile } = useDoc<UserProfile>(userProfileRef);
     const { data: settingsData, isLoading: isLoadingSettings } = useDoc<UserSettings>(userSettingsRef);
 
-    const { data: entries, isLoading } = useCollection<WorkLog>(workLogsRef);
+    const { data: workLogs, isLoading } = useCollection<WorkLog>(workLogsRef);
     
     const handleLogUpdate = () => {
         setRefreshKey(prev => prev + 1);
@@ -92,7 +84,7 @@ function UserDashboard() {
     }, [settingsData, profile]);
 
     useEffect(() => {
-        if (!entries) return;
+        if (!workLogs) return;
 
         const now = new Date();
 
@@ -101,7 +93,7 @@ function UserDashboard() {
         let tutorialDays = 0;
         const uniqueDays = new Set<string>();
 
-        entries.forEach(entry => {
+        workLogs.forEach(entry => {
             if (entry.type === 'particular' && entry.date && isSameMonth(parseISO(entry.date), now)) {
                 totalEarnings += (entry.amount || 0);
                 particularHours += (entry.duration || 0);
@@ -131,7 +123,17 @@ function UserDashboard() {
             particularHours,
         });
 
-    }, [entries]);
+    }, [workLogs]);
+
+    const sortedWorkLogs = useMemo(() => {
+        if (!workLogs) return [];
+        return [...workLogs].sort((a, b) => {
+          const dateA = a.type === 'tutorial' ? a.startDate : a.date;
+          const dateB = b.type === 'tutorial' ? b.startDate : b.date;
+          if (!dateA || !dateB) return 0;
+          return parseISO(dateB).getTime() - parseISO(dateA).getTime();
+        });
+    }, [workLogs]);
 
 
   return (
@@ -168,29 +170,36 @@ function UserDashboard() {
              <div className="mt-4 rounded-lg border bg-card p-6 text-center">
                  <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />
              </div>
-        ) : entries && entries.length > 0 ? (
-            <div className="mt-4 rounded-lg border bg-card p-4">
-                 <div className="space-y-4">
-                    {entries.slice(0, 5).map(log => (
-                        <div key={log.id} className="flex items-center justify-between rounded-md p-3 hover:bg-slate-50">
-                            <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-full ${log.type === 'particular' ? 'bg-blue-100' : 'bg-purple-100'}`}>
-                                     <Briefcase className={`h-5 w-5 ${log.type === 'particular' ? 'text-blue-500' : 'text-purple-500'}`}/>
-                                </div>
-                                <div>
-                                    <p className="font-medium">{log.description}</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        {log.type === 'particular' && log.date ? format(parseISO(log.date), 'dd MMM yyyy', {locale: es}) : (log.startDate && log.endDate ? `${format(parseISO(log.startDate), 'dd MMM', {locale: es})} - ${format(parseISO(log.endDate), 'dd MMM yyyy', {locale: es})}` : '')}
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="text-right">
-                                 <p className="font-bold text-lg text-green-600">€{log.amount?.toFixed(2)}</p>
-                                 <p className="text-xs text-muted-foreground">{log.duration ? `${log.duration} horas` : ''}</p>
-                            </div>
-                        </div>
-                    ))}
-                 </div>
+        ) : sortedWorkLogs && sortedWorkLogs.length > 0 ? (
+            <div className="mt-4 rounded-lg border bg-card overflow-hidden">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Tipo</TableHead>
+                            <TableHead>Fecha</TableHead>
+                            <TableHead>Descripción</TableHead>
+                            <TableHead>Duración/Días</TableHead>
+                            <TableHead className="text-right">Importe</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {sortedWorkLogs.slice(0, 5).map(log => (
+                             <TableRow key={log.id}>
+                                <TableCell>
+                                    <Badge variant={log.type === 'particular' ? 'secondary' : 'default'}>{log.type.charAt(0).toUpperCase() + log.type.slice(1)}</Badge>
+                                </TableCell>
+                                <TableCell>
+                                    {log.type === 'particular' && log.date 
+                                    ? format(parseISO(log.date), 'dd/MM/yyyy') 
+                                    : (log.startDate && log.endDate ? `${format(parseISO(log.startDate), 'dd/MM/yy')} - ${format(parseISO(log.endDate), 'dd/MM/yy')}`: '-')}
+                                </TableCell>
+                                <TableCell className="max-w-[200px] truncate">{log.description}</TableCell>
+                                <TableCell>{log.duration ?? '-'}</TableCell>
+                                <TableCell className="text-right font-medium">€{log.amount?.toFixed(2) ?? '0.00'}</TableCell>
+                             </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
             </div>
         ) : (
              <div className="mt-4 rounded-lg border bg-card p-6 text-center">
