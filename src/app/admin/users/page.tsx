@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { APP_ID, ADMIN_EMAIL } from "@/lib/config";
 import { useToast } from "@/hooks/use-toast";
 import type { AccessRequest, UserProfile, WorkLog, UserSettings, AllowedUser } from "@/lib/types";
-import { Loader2, CheckCircle, XCircle, PlusCircle, Users, ChevronDown, ChevronUp, History, Briefcase, Clock, Calendar as CalendarIconLucide, ShieldOff } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, PlusCircle, Users, ChevronDown, ChevronUp, History, Briefcase, Clock, Calendar as CalendarIconLucide, ShieldOff, Edit, Trash2 } from "lucide-react";
 import { format, parseISO, getMonth, getYear } from "date-fns";
 import React, { useState, useEffect, useMemo, FormEvent } from 'react';
 import {
@@ -382,7 +382,7 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [logType, setLogType] = useState<'particular' | 'tutorial'>('particular');
-  const [selectedUserId, setSelectedUserId] = useState<string | undefined>();
+  const [selectedUserId, setSelectedUserId] = useState<string | undefined>(users.length === 1 ? users[0].uid : undefined);
   const [formData, setFormData] = useState<Partial<WorkLog>>({
       hasCoordination: false,
       hasNight: false,
@@ -393,12 +393,13 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
   
   const resetForm = () => {
       setFormData({ hasCoordination: false, hasNight: false, arrivesPrior: false });
-      setSelectedUserId(undefined);
+      if (users.length !== 1) {
+        setSelectedUserId(undefined);
+      }
       setLogType('particular');
   };
 
   useEffect(() => {
-    // Reset dependent switches when logType changes
     if (logType === 'particular') {
         setFormData(prev => ({...prev, arrivesPrior: false}));
     }
@@ -503,23 +504,25 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
                   </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="user" className="text-right">
-                          Usuario
-                      </Label>
-                      <Select onValueChange={setSelectedUserId} value={selectedUserId}>
-                          <SelectTrigger className="col-span-3">
-                              <SelectValue placeholder="Selecciona un usuario" />
-                          </SelectTrigger>
-                          <SelectContent>
-                              {users.map(user => (
-                                  <SelectItem key={user.uid} value={user.uid}>
-                                      {user.firstName} {user.lastName}
-                                  </SelectItem>
-                              ))}
-                          </SelectContent>
-                      </Select>
-                  </div>
+                 {users.length > 1 && (
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="user" className="text-right">
+                            Usuario
+                        </Label>
+                        <Select onValueChange={setSelectedUserId} value={selectedUserId}>
+                            <SelectTrigger className="col-span-3">
+                                <SelectValue placeholder="Selecciona un usuario" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {users.map(user => (
+                                    <SelectItem key={user.uid} value={user.uid}>
+                                        {user.firstName} {user.lastName}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                 )}
 
                   <div className="grid grid-cols-4 items-center gap-4">
                       <Label className="text-right">Tipo</Label>
@@ -631,6 +634,9 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
 
               </div>
               <DialogFooter>
+                   <DialogClose asChild>
+                        <Button variant="ghost">Cancelar</Button>
+                    </DialogClose>
                   <Button type="submit" disabled={isLoading} onClick={handleSubmit}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                     Guardar Registro
@@ -640,6 +646,339 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
       </Dialog>
   )
 }
+
+export function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkLog | null, isOpen: boolean, onOpenChange: (open: boolean) => void }) {
+    if (!log) return null;
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Detalles del Registro</DialogTitle>
+                    <DialogDescription>
+                        Información completa del registro de jornada.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 text-sm">
+                    <div className="flex items-center gap-2">
+                        <strong>Tipo:</strong> <Badge variant={log.type === 'particular' ? 'secondary' : 'default'}>{log.type.charAt(0).toUpperCase() + log.type.slice(1)}</Badge>
+                    </div>
+                    {log.type === 'particular' ? (
+                        <>
+                            <div><strong>Fecha:</strong> {log.date ? format(parseISO(log.date), 'PPP', { locale: es }) : '-'}</div>
+                            <div><strong>Hora Inicio:</strong> {log.startTime ?? '-'}</div>
+                            <div><strong>Hora Fin:</strong> {log.endTime ?? '-'}</div>
+                            <div><strong>Duración:</strong> {log.duration ?? '-'} horas</div>
+                        </>
+                    ) : (
+                        <>
+                            <div><strong>Fecha Inicio:</strong> {log.startDate ? format(parseISO(log.startDate), 'PPP', { locale: es }) : '-'}</div>
+                            <div><strong>Fecha Fin:</strong> {log.endDate ? format(parseISO(log.endDate), 'PPP', { locale: es }) : '-'}</div>
+                        </>
+                    )}
+                    <div><strong>Descripción:</strong> {log.description}</div>
+                    <div className="font-bold text-lg text-green-600">Importe: €{log.amount?.toFixed(2) ?? '0.00'}</div>
+                    <div><strong>Tarifa Aplicada:</strong> €{log.rateApplied?.toFixed(2)}/h</div>
+                     <div className="pt-2">
+                        <strong>Cálculo de importe:</strong> {log.isGrossCalculation ? 'Bruto' : 'Neto'}
+                    </div>
+                     <div className="space-y-2 pt-2">
+                         <div className="flex items-center gap-2">
+                            <Switch checked={log.hasCoordination} disabled id="hasCoordination" />
+                            <Label htmlFor="hasCoordination">Coordinación</Label>
+                        </div>
+                        {(log.type === 'tutorial' || log.type === 'particular') && (
+                             <div className="flex items-center gap-2">
+                                <Switch checked={log.hasNight} disabled id="hasNight" />
+                                <Label htmlFor="hasNight">Nocturnidad</Label>
+                            </div>
+                        )}
+                        {log.type === 'tutorial' && log.hasNight && (
+                            <div className="flex items-center gap-2">
+                                <Switch checked={log.arrivesPrior} disabled id="arrivesPrior" />
+                                <Label htmlFor="arrivesPrior">Llegada día anterior</Label>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+export function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate, children }: { log: WorkLog, userId: string, userSettings: UserSettings | null, onLogUpdate: () => void, children?: React.ReactNode }) {
+    const [open, setOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [logType, setLogType] = useState<'particular' | 'tutorial'>(log.type);
+    const [formData, setFormData] = useState<Partial<WorkLog>>({ ...log });
+    const firestore = useFirestore();
+    const { toast } = useToast();
+
+    useEffect(() => {
+        if(open) {
+            setLogType(log.type);
+            setFormData({ ...log, userId: log.userId });
+        }
+    }, [log, open]);
+
+    useEffect(() => {
+        if (logType === 'particular') {
+            setFormData(prev => ({...prev, arrivesPrior: false}));
+        }
+    }, [logType]);
+
+    useEffect(() => {
+        if (!formData.hasNight) {
+            setFormData(prev => ({...prev, arrivesPrior: false}));
+        }
+    }, [formData.hasNight]);
+
+    const handleDateChange = (field: 'date' | 'startDate' | 'endDate', value: Date | undefined) => {
+        if (value) {
+            setFormData(prev => ({ ...prev, [field]: format(value, 'yyyy-MM-dd') }));
+        }
+    };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSwitchChange = (name: keyof WorkLog, checked: boolean) => {
+        setFormData(prev => ({ ...prev, [name]: checked }));
+    };
+
+    const handleSubmit = async () => {
+         if (!firestore || !userSettings || !userId) {
+            let errorDescription = "No se pudieron cargar los datos necesarios para actualizar. Faltan datos: ";
+            const missingData = [];
+            if (!firestore) missingData.push("firestore");
+            if (!userSettings) missingData.push("userSettings");
+            if (!userId) missingData.push("userId");
+            errorDescription += missingData.join(', ');
+
+            toast({ title: "Error", description: errorDescription, variant: "destructive" });
+            return;
+        };
+        setIsLoading(true);
+
+        const updatedLogData: Partial<WorkLog> = {
+            ...formData,
+            type: logType,
+            userId: userId,
+        };
+
+        const { amount, isGross, rateApplied, duration } = calculateEarnings(updatedLogData, userSettings);
+        
+        const finalData = {
+            ...updatedLogData,
+            amount,
+            isGrossCalculation: isGross,
+            rateApplied,
+            duration,
+        }
+
+        try {
+            const logDocRef = doc(firestore, `artifacts/${APP_ID}/users/${userId}/work_logs`, log.id);
+            await updateDoc(logDocRef, finalData);
+            toast({ title: "Éxito", description: "Registro de trabajo actualizado correctamente." });
+            setOpen(false);
+            onLogUpdate();
+        } catch (error: any) {
+            console.error("Error updating work log:", error);
+            toast({ title: "Error", description: error.message || "No se pudo actualizar el registro.", variant: "destructive" });
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                {children ?? (
+                    <Button variant="ghost" size="icon">
+                        <Edit className="h-4 w-4" />
+                    </Button>
+                )}
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>Editar Registro de Jornada</DialogTitle>
+                    <DialogDescription>
+                        Modifica los detalles del registro de trabajo.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label className="text-right">Tipo</Label>
+                        <RadioGroup defaultValue={logType} value={logType} className="col-span-3 flex gap-4" onValueChange={(value: 'particular' | 'tutorial') => setLogType(value)}>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="particular" id="r1" />
+                                <Label htmlFor="r1">Particular</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="tutorial" id="r2" />
+                                <Label htmlFor="r2">Tutorial</Label>
+                            </div>
+                        </RadioGroup>
+                    </div>
+
+                    {logType === 'particular' ? (
+                        <>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="date" className="text-right">Fecha</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant={"outline"}
+                                            className={cn("col-span-3 justify-start text-left font-normal", !formData.date && "text-muted-foreground")}
+                                        >
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {formData.date ? format(parseISO(formData.date), 'PPP', { locale: es }) : <span>Elige una fecha</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                        <Calendar mode="single" selected={formData.date ? parseISO(formData.date) : undefined} onSelect={(d) => handleDateChange('date', d)} initialFocus locale={es} weekStartsOn={1}/>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="startTime" className="text-right">Hora Inicio</Label>
+                                <Input id="startTime" name="startTime" type="time" className="col-span-3" value={formData.startTime || ''} onChange={handleInputChange} />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="endTime" className="text-right">Hora Fin</Label>
+                                <Input id="endTime" name="endTime" type="time" className="col-span-3" value={formData.endTime || ''} onChange={handleInputChange} />
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="startDate" className="text-right">Fecha Inicio</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant={"outline"}
+                                            className={cn("col-span-3 justify-start text-left font-normal", !formData.startDate && "text-muted-foreground")}
+                                        >
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {formData.startDate ? format(parseISO(formData.startDate), 'PPP', { locale: es }) : <span>Elige una fecha</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                        <Calendar mode="single" selected={formData.startDate ? parseISO(formData.startDate) : undefined} onSelect={(d) => handleDateChange('startDate', d)} initialFocus locale={es} weekStartsOn={1}/>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="endDate" className="text-right">Fecha Fin</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant={"outline"}
+                                            className={cn("col-span-3 justify-start text-left font-normal", !formData.endDate && "text-muted-foreground")}
+                                        >
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {formData.endDate ? format(parseISO(formData.endDate), 'PPP', { locale: es }) : <span>Elige una fecha</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                        <Calendar mode="single" selected={formData.endDate ? parseISO(formData.endDate) : undefined} onSelect={(d) => handleDateChange('endDate', d)} initialFocus locale={es} weekStartsOn={1}/>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                        </>
+                    )}
+
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="description" className="text-right">Descripción</Label>
+                        <Input id="description" name="description" className="col-span-3" value={formData.description || ''} onChange={handleInputChange}/>
+                    </div>
+
+                    <div className="grid grid-cols-4 items-start gap-4">
+                        <Label className="text-right pt-2">Opciones</Label>
+                         <div className="col-span-3 space-y-2">
+                            <div className="flex items-center space-x-2">
+                                <Switch id="hasCoordination" name="hasCoordination" checked={formData.hasCoordination} onCheckedChange={(c) => handleSwitchChange('hasCoordination', c)}/>
+                                <Label htmlFor="hasCoordination">Coordinación</Label>
+                            </div>
+                            {(logType === 'tutorial' || logType === 'particular') && (
+                                <div className="flex items-center space-x-2">
+                                    <Switch id="hasNight" name="hasNight" checked={formData.hasNight} onCheckedChange={(c) => handleSwitchChange('hasNight', c)}/>
+                                    <Label htmlFor="hasNight">Nocturnidad</Label>
+                                </div>
+                            )}
+                            {logType === 'tutorial' && formData.hasNight && (
+                                <div className="flex items-center space-x-2 pl-6">
+                                    <Switch id="arrivesPrior" name="arrivesPrior" checked={formData.arrivesPrior} onCheckedChange={(c) => handleSwitchChange('arrivesPrior', c)}/>
+                                    <Label htmlFor="arrivesPrior">Llegada día anterior</Label>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button variant="ghost">Cancelar</Button>
+                    </DialogClose>
+                    <Button type="submit" disabled={isLoading} onClick={handleSubmit}>
+                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                        Guardar Cambios
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+export function DeleteWorkLogAlert({ log, userId, onLogUpdate }: { log: WorkLog, userId: string, onLogUpdate: () => void }) {
+    const [isLoading, setIsLoading] = useState(false);
+    const firestore = useFirestore();
+    const { toast } = useToast();
+
+    const handleDelete = async () => {
+        if (!firestore || !userId) return;
+        setIsLoading(true);
+        try {
+            const logDocRef = doc(firestore, `artifacts/${APP_ID}/users/${userId}/work_logs`, log.id);
+            await deleteDoc(logDocRef);
+            toast({ title: "Éxito", description: "El registro ha sido eliminado." });
+            onLogUpdate();
+        } catch (error: any) {
+            console.error("Error deleting work log:", error);
+            toast({ title: "Error", description: "No se pudo eliminar el registro.", variant: "destructive" });
+        } finally {
+            setIsLoading(false);
+        }
+    }
+    
+    return (
+        <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Esta acción no se puede deshacer. Esto eliminará permanentemente el registro de trabajo.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} disabled={isLoading}>
+                         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                        Eliminar
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
+}
+
 
 function CreateUserDialog({ onUserUpdate }: { onUserUpdate: () => void }) {
     const [open, setOpen] = useState(false);
@@ -664,17 +1003,10 @@ function CreateUserDialog({ onUserUpdate }: { onUserUpdate: () => void }) {
         try {
             const batch = writeBatch(firestore);
 
-            // 1. Add to allowed_users to grant access
             const allowedUsersRef = collection(firestore, `artifacts/${APP_ID}/public/data/allowed_users`);
             batch.set(doc(allowedUsersRef), { email: formData.email.toLowerCase() });
 
-            // 2. Create a placeholder user profile
             const usersRef = collection(firestore, `artifacts/${APP_ID}/public/data/users`);
-            // The UID will be unknown until the user logs in. For now, we create a placeholder document
-            // with a generated ID. This is not ideal, but it allows the user to appear in the list.
-            // The correct approach would be to have a cloud function that creates the profile
-            // once the user is created in Auth, but we can't do that from the client.
-            // Let's create it with a temporary ID, and the login flow should handle replacing it.
             const tempUserId = doc(collection(firestore, 'temp')).id;
             const userProfileRef = doc(usersRef, tempUserId);
             
@@ -776,7 +1108,6 @@ export default function AdminUsersPage() {
           if (docSnap.exists()) {
             return { ...docSnap.data(), userId: user.uid } as UserSettings;
           }
-          // Create a default settings object if it doesn't exist
           const defaultSettings: UserSettings = {
             userId: user.uid,
             firstName: user.firstName,
@@ -787,7 +1118,6 @@ export default function AdminUsersPage() {
             nightRate: 30,
             isGross: false,
           };
-          // We don't save it here, just use it for the UI. It will be saved when admin edits the user.
           return defaultSettings;
         })
       });
@@ -809,7 +1139,6 @@ export default function AdminUsersPage() {
         
         if (newStatus === 'approved') {
             const allowedUserRef = collection(firestore, `artifacts/${APP_ID}/public/data/allowed_users`);
-            // Check if user already in allowed_users
             const q = query(allowedUserRef, where("email", "==", request.email));
             const existing = await getDocs(q);
             if (existing.empty) {
@@ -821,7 +1150,7 @@ export default function AdminUsersPage() {
             await updateDoc(requestRef, { status: 'rejected' });
             toast({ title: "Acceso Rechazado", description: `La solicitud de ${request.email} ha sido rechazada.`});
         }
-        handleUserUpdate(); // Refresh lists
+        handleUserUpdate(); 
     } catch(error: any) {
         console.error("Error handling request:", error);
         toast({ title: "Error", description: "No se pudo procesar la solicitud.", variant: "destructive"});
@@ -1007,7 +1336,3 @@ export default function AdminUsersPage() {
     </div>
   );
 }
-
-
-
-    

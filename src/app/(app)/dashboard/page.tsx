@@ -3,19 +3,18 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
-import { ADMIN_EMAIL, APP_ID } from "@/lib/config";
+import { APP_ID } from "@/lib/config";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Loader2, BookOpen, Clock, Briefcase, DollarSign } from "lucide-react";
+import { PlusCircle, Loader2, BookOpen, Clock, Briefcase, DollarSign, Edit, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import type { UserProfile, UserSettings, WorkLog } from "@/lib/types";
 import { collection, doc } from "firebase/firestore";
 import { format, isSameMonth, parseISO, differenceInCalendarDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CreateWorkLogDialog } from "@/app/admin/users/page";
-import AdminDashboardPage from "@/app/admin/dashboard/page";
-import { adminViewAsAdmin } from "@/components/main-nav";
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { WorkLogDetailsDialog, EditWorkLogDialog, DeleteWorkLogAlert } from "@/app/admin/users/page";
 
 const StatCard = ({ title, value, icon: Icon, colorClass = "text-primary", unit }: { title: string, value: number, icon: React.ElementType, colorClass?: string, unit?: string }) => (
     <Card>
@@ -42,6 +41,7 @@ function UserDashboard() {
         particularHours: 0,
     });
     const [refreshKey, setRefreshKey] = useState(0);
+    const [selectedLog, setSelectedLog] = useState<WorkLog | null>(null);
 
     const workLogsRef = useMemoFirebase(
         () => user ? collection(firestore, `artifacts/${APP_ID}/users/${user.uid}/work_logs`) : null,
@@ -68,7 +68,6 @@ function UserDashboard() {
     const settings: UserSettings | null = useMemo(() => {
         if (settingsData) return settingsData;
         if (profile) {
-            // Create default settings if they don't exist, so the dialog can open
             return {
                 userId: profile.uid,
                 firstName: profile.firstName,
@@ -101,8 +100,7 @@ function UserDashboard() {
             } else if (entry.type === 'tutorial' && entry.startDate && entry.endDate) {
                 const start = parseISO(entry.startDate);
                 const end = parseISO(entry.endDate);
-                 // Distribute earnings over the days in the current month
-                const tutorialDuration = differenceInCalendarDays(end, start) + 1;
+                 const tutorialDuration = differenceInCalendarDays(end, start) + 1;
                 const dailyEarning = tutorialDuration > 0 ? (entry.amount || 0) / tutorialDuration : 0;
                 
                 for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
@@ -135,6 +133,9 @@ function UserDashboard() {
         });
     }, [workLogs]);
 
+    const handleRowClick = (log: WorkLog) => {
+        setSelectedLog(log);
+    };
 
   return (
     <div className="space-y-8">
@@ -158,10 +159,10 @@ function UserDashboard() {
       </div>
       
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-             <StatCard title="Ingresos (Mes Actual)" value={monthlyStats.totalEarnings} unit="€" icon={DollarSign} colorClass="text-green-500" />
-             <StatCard title="Horas Particulares (Mes)" value={monthlyStats.particularHours} unit="h" icon={Clock} colorClass="text-blue-500" />
-             <StatCard title="Días Tutorial (Mes)" value={monthlyStats.tutorialDays} unit="días" icon={BookOpen} colorClass="text-purple-500" />
-             <StatCard title="Total Días Trabajados (Mes)" value={monthlyStats.totalDaysWorked} unit="días" icon={Briefcase} colorClass="text-indigo-500" />
+             <StatCard title="Ingresos (Mes Actual)" value={monthlyStats.totalEarnings} icon={DollarSign} colorClass="text-green-500" unit="€" />
+             <StatCard title="Horas Particulares (Mes)" value={monthlyStats.particularHours} icon={Clock} colorClass="text-blue-500" unit="h" />
+             <StatCard title="Días Tutorial (Mes)" value={monthlyStats.tutorialDays} icon={BookOpen} colorClass="text-purple-500" unit="días" />
+             <StatCard title="Total Días Trabajados (Mes)" value={monthlyStats.totalDaysWorked} icon={Briefcase} colorClass="text-indigo-500" unit="días" />
         </div>
 
       <div>
@@ -180,11 +181,12 @@ function UserDashboard() {
                             <TableHead>Descripción</TableHead>
                             <TableHead>Duración/Días</TableHead>
                             <TableHead className="text-right">Importe</TableHead>
+                             <TableHead className="w-[100px] text-right">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {sortedWorkLogs.slice(0, 5).map(log => (
-                             <TableRow key={log.id}>
+                             <TableRow key={log.id} onClick={() => handleRowClick(log)} className="cursor-pointer">
                                 <TableCell>
                                     <Badge variant={log.type === 'particular' ? 'secondary' : 'default'}>{log.type.charAt(0).toUpperCase() + log.type.slice(1)}</Badge>
                                 </TableCell>
@@ -194,8 +196,18 @@ function UserDashboard() {
                                     : (log.startDate && log.endDate ? `${format(parseISO(log.startDate), 'dd/MM/yy')} - ${format(parseISO(log.endDate), 'dd/MM/yy')}`: '-')}
                                 </TableCell>
                                 <TableCell className="max-w-[200px] truncate">{log.description}</TableCell>
-                                <TableCell>{log.duration ?? '-'}</TableCell>
+                                <TableCell>{log.duration ? `${log.duration.toFixed(2)}h` : '-'}</TableCell>
                                 <TableCell className="text-right font-medium">€{log.amount?.toFixed(2) ?? '0.00'}</TableCell>
+                                <TableCell className="text-right">
+                                    <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+                                        {user && settings && (
+                                            <>
+                                            <EditWorkLogDialog log={log} userId={user.uid} userSettings={settings} onLogUpdate={handleLogUpdate} />
+                                            <DeleteWorkLogAlert log={log} userId={user.uid} onLogUpdate={handleLogUpdate} />
+                                            </>
+                                        )}
+                                    </div>
+                                </TableCell>
                              </TableRow>
                         ))}
                     </TableBody>
@@ -207,6 +219,7 @@ function UserDashboard() {
              </div>
         )}
       </div>
+       <WorkLogDetailsDialog log={selectedLog} isOpen={!!selectedLog} onOpenChange={(isOpen) => !isOpen && setSelectedLog(null)} />
     </div>
   );
 }
@@ -217,11 +230,7 @@ export default function DashboardPage() {
   const [isAdminView, setIsAdminView] = useState(adminViewAsAdmin);
   const isAdmin = user?.email === ADMIN_EMAIL;
   
-  // This is a bit of a hack to force re-render when the view mode changes
-  // A better solution might involve a global state manager (like Zustand or Context)
-  // but for this simple case, we can use a trick with a key or re-check the global var.
   useEffect(() => {
-    // This is just to listen to changes in the global var
     const interval = setInterval(() => {
         if(isAdminView !== adminViewAsAdmin){
             setIsAdminView(adminViewAsAdmin);
@@ -243,5 +252,3 @@ export default function DashboardPage() {
 
   return shouldShowAdminView ? <AdminDashboardPage /> : <UserDashboard />;
 }
-
-    

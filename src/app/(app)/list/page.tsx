@@ -17,66 +17,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Loader2, PlusCircle } from "lucide-react";
+import { Loader2, PlusCircle, Edit, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { CreateWorkLogDialog } from "@/app/admin/users/page";
+import { CreateWorkLogDialog, DeleteWorkLogAlert, EditWorkLogDialog, WorkLogDetailsDialog } from "@/app/admin/users/page";
 
-
-function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkLog | null, isOpen: boolean, onOpenChange: (open: boolean) => void }) {
-    if (!log) return null;
-
-    return (
-        <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Detalles del Registro</DialogTitle>
-                    <DialogDescription>
-                        Información completa del registro de jornada.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 text-sm">
-                    <div className="flex items-center gap-2">
-                        <strong>Tipo:</strong> <Badge variant={log.type === 'particular' ? 'secondary' : 'default'}>{log.type.charAt(0).toUpperCase() + log.type.slice(1)}</Badge>
-                    </div>
-                    {log.type === 'particular' ? (
-                        <>
-                            <div><strong>Fecha:</strong> {log.date ? format(parseISO(log.date), 'PPP', { locale: es }) : '-'}</div>
-                            <div><strong>Hora Inicio:</strong> {log.startTime ?? '-'}</div>
-                            <div><strong>Hora Fin:</strong> {log.endTime ?? '-'}</div>
-                            <div><strong>Duración:</strong> {log.duration ?? '-'} horas</div>
-                        </>
-                    ) : (
-                        <>
-                            <div><strong>Fecha Inicio:</strong> {log.startDate ? format(parseISO(log.startDate), 'PPP', { locale: es }) : '-'}</div>
-                            <div><strong>Fecha Fin:</strong> {log.endDate ? format(parseISO(log.endDate), 'PPP', { locale: es }) : '-'}</div>
-                        </>
-                    )}
-                    <div><strong>Descripción:</strong> {log.description}</div>
-                    <div className="font-bold text-lg text-green-600">Importe: €{log.amount?.toFixed(2) ?? '0.00'}</div>
-                    <div><strong>Tarifa Aplicada:</strong> €{log.rateApplied?.toFixed(2)}/h</div>
-                     <div className="pt-2">
-                        <strong>Cálculo de importe:</strong> {log.isGrossCalculation ? 'Bruto' : 'Neto'}
-                    </div>
-                    <div className="space-y-2 pt-2">
-                        <div className="flex items-center gap-2">
-                            <Switch checked={log.hasCoordination} disabled id="hasCoordination" />
-                            <Label htmlFor="hasCoordination">Coordinación</Label>
-                        </div>
-                        {log.type === 'tutorial' && (
-                            <div className="flex items-center gap-2">
-                                <Switch checked={log.arrivesPrior} disabled id="arrivesPrior" />
-                                <Label htmlFor="arrivesPrior">Llegada Día Anterior</Label>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
-}
 
 export default function ListPage() {
   const { user } = useUser();
@@ -167,12 +111,13 @@ export default function ListPage() {
               <TableHead>Descripción</TableHead>
               <TableHead>Duración/Días</TableHead>
               <TableHead className="text-right">Importe</TableHead>
+              <TableHead className="w-[100px] text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
                 <TableRow>
-                    <TableCell colSpan={5} className="text-center py-12">
+                    <TableCell colSpan={6} className="text-center py-12">
                         <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
                     </TableCell>
                 </TableRow>
@@ -188,13 +133,23 @@ export default function ListPage() {
                       : (log.startDate && log.endDate ? `${format(parseISO(log.startDate), 'dd/MM/yy')} - ${format(parseISO(log.endDate), 'dd/MM/yy')}`: '-')}
                   </TableCell>
                   <TableCell className="max-w-[200px] truncate">{log.description}</TableCell>
-                  <TableCell>{log.duration ?? '-'}</TableCell>
+                  <TableCell>{log.duration ? `${log.duration.toFixed(2)}h` : '-'}</TableCell>
                   <TableCell className="text-right font-medium">€{log.amount?.toFixed(2) ?? '0.00'}</TableCell>
+                   <TableCell className="text-right">
+                      <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+                           {user && settings && (
+                              <>
+                              <EditWorkLogDialog log={log} userId={user.uid} userSettings={settings} onLogUpdate={handleLogUpdate} />
+                              <DeleteWorkLogAlert log={log} userId={user.uid} onLogUpdate={handleLogUpdate} />
+                              </>
+                          )}
+                      </div>
+                  </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-12">
+                <TableCell colSpan={6} className="text-center text-muted-foreground py-12">
                   No hay registros para mostrar.
                 </TableCell>
               </TableRow>
@@ -206,5 +161,3 @@ export default function ListPage() {
     </div>
   );
 }
-
-    
