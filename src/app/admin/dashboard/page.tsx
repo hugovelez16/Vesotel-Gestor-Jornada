@@ -9,14 +9,14 @@ import type { UserProfile, WorkLog, UserSettings } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, User, DollarSign, Clock, Briefcase, Calendar, Users, PlusCircle, ChevronLeft, ChevronRight, Edit } from 'lucide-react';
+import { Loader2, User, DollarSign, Clock, Briefcase, Calendar as CalendarIcon, Users, PlusCircle, ChevronLeft, ChevronRight, Edit, AreaChart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, parseISO, getMonth, getYear, startOfMonth, endOfMonth, isWithinInterval, differenceInCalendarDays, addDays, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -125,7 +125,7 @@ function UserStats({ user, workLogs }: { user: UserProfile; workLogs: WorkLog[] 
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <StatDisplay icon={DollarSign} label="Ingresos Totales" value={stats.totalEarnings.toFixed(2)} unit="€" colorClass="text-green-500" />
             <StatDisplay icon={Clock} label="Horas Totales (Part.)" value={stats.totalParticularHours.toFixed(1)} unit="h" colorClass="text-blue-500" />
-            <StatDisplay icon={Calendar} label="Días Totales Trabajados" value={stats.totalDaysWorked} unit="días" colorClass="text-indigo-500" />
+            <StatDisplay icon={CalendarIcon} label="Días Totales Trabajados" value={stats.totalDaysWorked} unit="días" colorClass="text-indigo-500" />
             <StatDisplay icon={Briefcase} label="Días Totales (Tut.)" value={stats.totalTutorialDays} unit="días" colorClass="text-purple-500" />
           </CardContent>
         </Card>
@@ -151,7 +151,7 @@ function UserStats({ user, workLogs }: { user: UserProfile; workLogs: WorkLog[] 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-md bg-slate-50 border">
                                         <StatDisplay icon={DollarSign} label="Ingresos" value={monthData.earnings.toFixed(2)} unit="€" colorClass="text-green-500"/>
                                         <StatDisplay icon={Clock} label="Horas (Part.)" value={monthData.particularHours.toFixed(1)} unit="h" colorClass="text-blue-500"/>
-                                        <StatDisplay icon={Calendar} label="Días Trabajados" value={monthData.workedDays.size} unit="días" colorClass="text-indigo-500"/>
+                                        <StatDisplay icon={CalendarIcon} label="Días Trabajados" value={monthData.workedDays.size} unit="días" colorClass="text-indigo-500"/>
                                         <StatDisplay icon={Briefcase} label="Días (Tut.)" value={monthData.tutorialDays} unit="días" colorClass="text-purple-500"/>
                                     </div>
                                 </AccordionContent>
@@ -626,9 +626,15 @@ export default function AdminDashboardPage() {
         <p className="text-muted-foreground">Gestiona usuarios y la actividad de la aplicación.</p>
       </div>
        <Tabs defaultValue="timeline" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="timeline">Timeline</TabsTrigger>
-          <TabsTrigger value="stats">Estadísticas</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 bg-slate-100 p-1">
+          <TabsTrigger value="timeline" className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">
+            <Clock className="mr-2 h-4 w-4" />
+            Timeline
+          </TabsTrigger>
+          <TabsTrigger value="stats" className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm">
+            <AreaChart className="mr-2 h-4 w-4 animate-pulse" />
+            Estadísticas
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="timeline">
           <AdminTimeline />
@@ -640,5 +646,3 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-
-    
