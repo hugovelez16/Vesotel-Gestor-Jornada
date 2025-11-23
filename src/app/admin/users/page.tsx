@@ -401,7 +401,7 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
 
   useEffect(() => {
     if (logType === 'particular') {
-        setFormData(prev => ({...prev, arrivesPrior: false}));
+        setFormData(prev => ({...prev, arrivesPrior: false, hasNight: false}));
     }
   }, [logType]);
 
@@ -485,6 +485,12 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
         setIsLoading(false);
     }
   }
+  
+  const selectedUserName = useMemo(() => {
+    if (!selectedUserId) return null;
+    const user = users.find(u => u.uid === selectedUserId);
+    return user ? `${user.firstName} ${user.lastName}` : null;
+  }, [selectedUserId, users]);
 
   return (
       <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if(!isOpen) resetForm(); }}>
@@ -511,7 +517,9 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
                         </Label>
                         <Select onValueChange={setSelectedUserId} value={selectedUserId}>
                             <SelectTrigger className="col-span-3">
-                                <SelectValue placeholder="Selecciona un usuario" />
+                                <SelectValue placeholder="Selecciona un usuario">
+                                  {selectedUserName}
+                                </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                                 {users.map(user => (
@@ -617,7 +625,7 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
                             <Switch id="hasCoordination" name="hasCoordination" checked={formData.hasCoordination} onCheckedChange={(c) => handleSwitchChange('hasCoordination', c)}/>
                             <Label htmlFor="hasCoordination">Coordinación</Label>
                         </div>
-                        {(logType === 'tutorial' || logType === 'particular') && (
+                        {logType === 'tutorial' && (
                             <div className="flex items-center space-x-2">
                                 <Switch id="hasNight" name="hasNight" checked={formData.hasNight} onCheckedChange={(c) => handleSwitchChange('hasNight', c)}/>
                                 <Label htmlFor="hasNight">Nocturnidad</Label>
@@ -687,7 +695,7 @@ export function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkL
                             <Switch checked={log.hasCoordination} disabled id="hasCoordination" />
                             <Label htmlFor="hasCoordination">Coordinación</Label>
                         </div>
-                        {(log.type === 'tutorial' || log.type === 'particular') && (
+                        {log.type === 'tutorial' && (
                              <div className="flex items-center gap-2">
                                 <Switch checked={log.hasNight} disabled id="hasNight" />
                                 <Label htmlFor="hasNight">Nocturnidad</Label>
@@ -717,13 +725,13 @@ export function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate, chil
     useEffect(() => {
         if(open) {
             setLogType(log.type);
-            setFormData({ ...log, userId: log.userId });
+            setFormData({ ...log });
         }
     }, [log, open]);
 
     useEffect(() => {
         if (logType === 'particular') {
-            setFormData(prev => ({...prev, arrivesPrior: false}));
+            setFormData(prev => ({...prev, arrivesPrior: false, hasNight: false}));
         }
     }, [logType]);
 
@@ -749,12 +757,12 @@ export function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate, chil
     };
 
     const handleSubmit = async () => {
-         if (!firestore || !userSettings || !userId) {
+        if (!firestore || !userSettings || !formData.userId) {
             let errorDescription = "No se pudieron cargar los datos necesarios para actualizar. Faltan datos: ";
             const missingData = [];
             if (!firestore) missingData.push("firestore");
             if (!userSettings) missingData.push("userSettings");
-            if (!userId) missingData.push("userId");
+            if (!formData.userId) missingData.push("userId");
             errorDescription += missingData.join(', ');
 
             toast({ title: "Error", description: errorDescription, variant: "destructive" });
@@ -765,7 +773,6 @@ export function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate, chil
         const updatedLogData: Partial<WorkLog> = {
             ...formData,
             type: logType,
-            userId: userId,
         };
 
         const { amount, isGross, rateApplied, duration } = calculateEarnings(updatedLogData, userSettings);
@@ -779,7 +786,7 @@ export function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate, chil
         }
 
         try {
-            const logDocRef = doc(firestore, `artifacts/${APP_ID}/users/${userId}/work_logs`, log.id);
+            const logDocRef = doc(firestore, `artifacts/${APP_ID}/users/${formData.userId}/work_logs`, log.id);
             await updateDoc(logDocRef, finalData);
             toast({ title: "Éxito", description: "Registro de trabajo actualizado correctamente." });
             setOpen(false);
@@ -902,7 +909,7 @@ export function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate, chil
                                 <Switch id="hasCoordination" name="hasCoordination" checked={formData.hasCoordination} onCheckedChange={(c) => handleSwitchChange('hasCoordination', c)}/>
                                 <Label htmlFor="hasCoordination">Coordinación</Label>
                             </div>
-                            {(logType === 'tutorial' || logType === 'particular') && (
+                            {logType === 'tutorial' && (
                                 <div className="flex items-center space-x-2">
                                     <Switch id="hasNight" name="hasNight" checked={formData.hasNight} onCheckedChange={(c) => handleSwitchChange('hasNight', c)}/>
                                     <Label htmlFor="hasNight">Nocturnidad</Label>
@@ -1160,7 +1167,7 @@ export default function AdminUsersPage() {
   const renderTableBody = (
     isLoading: boolean,
     data: any[] | null,
-    renderRow: (item: any, index: number) => JSX.Element,
+    renderRow: (item: any, index: number) => JSX.Element | (JSX.Element | null)[],
     emptyMessage: string,
     colSpan: number
   ) => {
@@ -1248,39 +1255,37 @@ export default function AdminUsersPage() {
                     {renderTableBody(
                         isLoading,
                         users,
-                        (user: UserProfile) => (
-                           <React.Fragment key={user.uid}>
-                                <TableRow onClick={() => handleRowClick(user.uid)} className="cursor-pointer">
-                                    <TableCell>
-                                      {user.firstName} {user.lastName}
-                                    </TableCell>
-                                    <TableCell>
-                                      {user.email}
-                                    </TableCell>
-                                    <TableCell>
-                                      {user.email === ADMIN_EMAIL ? (
-                                          <Badge variant="destructive">Admin</Badge>
-                                      ) : (
-                                          <Badge variant="secondary">Usuario</Badge>
-                                      )}
-                                    </TableCell>
-                                    <TableCell>
-                                      {expandedUserId === user.uid ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                    </TableCell>
-                                </TableRow>
-                                {expandedUserId === user.uid && (
-                                  <TableRow>
-                                      <TableCell colSpan={4} className="p-0">
-                                          <Collapsible open={true}>
-                                              <CollapsibleContent>
-                                                  <UserDetailContent userId={user.uid} onUserUpdate={handleUserUpdate} />
-                                              </CollapsibleContent>
-                                          </Collapsible>
-                                      </TableCell>
-                                  </TableRow>
-                                )}
-                           </React.Fragment>
-                        ),
+                        (user: UserProfile) => [
+                            <TableRow key={user.uid} onClick={() => handleRowClick(user.uid)} className="cursor-pointer">
+                                <TableCell>
+                                  {user.firstName} {user.lastName}
+                                </TableCell>
+                                <TableCell>
+                                  {user.email}
+                                </TableCell>
+                                <TableCell>
+                                  {user.email === ADMIN_EMAIL ? (
+                                      <Badge variant="destructive">Admin</Badge>
+                                  ) : (
+                                      <Badge variant="secondary">Usuario</Badge>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {expandedUserId === user.uid ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                </TableCell>
+                            </TableRow>,
+                            expandedUserId === user.uid && (
+                              <TableRow key={`${user.uid}-details`}>
+                                  <TableCell colSpan={4} className="p-0">
+                                      <Collapsible open={true}>
+                                          <CollapsibleContent>
+                                              <UserDetailContent userId={user.uid} onUserUpdate={handleUserUpdate} />
+                                          </CollapsibleContent>
+                                      </Collapsible>
+                                  </TableCell>
+                              </TableRow>
+                            )
+                        ],
                         "No hay usuarios para mostrar.",
                         4
                     )}
