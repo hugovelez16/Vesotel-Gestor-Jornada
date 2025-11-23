@@ -21,8 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { CreateWorkLogDialog } from '@/app/admin/users/page';
-import { EditWorkLogDialog } from '@/app/admin/users/[userId]/records/RecordsClient';
+import { CreateWorkLogDialog, EditWorkLogDialog } from '@/app/admin/users/page';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
@@ -660,5 +659,3 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-
-    
