@@ -8,16 +8,18 @@ import { APP_ID } from '@/lib/config';
 import type { WorkLog } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Loader2, DollarSign, Clock, Briefcase, Calendar as CalendarIcon } from 'lucide-react';
-import { format, parseISO, differenceInCalendarDays } from 'date-fns';
+import { Loader2, DollarSign, Clock, Briefcase, Calendar as CalendarIcon, MessageCircle } from 'lucide-react';
+import { format, parseISO, differenceInCalendarDays, getDate } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 interface MonthlyStats {
     earnings: number;
     particularHours: number;
     tutorialDays: number;
     workedDays: Set<string>;
+    logs: WorkLog[];
 }
 
 const StatDisplay = ({ icon: Icon, label, value, unit, colorClass = 'text-primary' }: { icon: React.ElementType, label: string, value: string | number, unit?: string, colorClass?: string }) => (
@@ -33,6 +35,60 @@ const StatDisplay = ({ icon: Icon, label, value, unit, colorClass = 'text-primar
     </div>
   </div>
 );
+
+const generateWhatsAppMessage = (logs: WorkLog[], monthName: string): string => {
+    const dailySummaries: { [day: number]: string } = {};
+    let totalHours = 0;
+    let totalTutorials = 0;
+    let totalNights = 0;
+    let totalCoordinations = 0;
+
+    logs.forEach(log => {
+        if (log.type === 'particular' && log.date) {
+            const day = getDate(parseISO(log.date));
+            const hours = log.duration || 0;
+            totalHours += hours;
+            dailySummaries[day] = `Dia ${day} - ${hours}h`;
+        } else if (log.type === 'tutorial' && log.startDate && log.endDate) {
+            const start = parseISO(log.startDate);
+            const end = parseISO(log.endDate);
+            
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                const day = getDate(d);
+                let summary = `Dia ${day} - Tutorial: ${log.description}`;
+                if(log.hasNight) summary += " + nocturnidad";
+                if(log.hasCoordination) summary += " + coordinación";
+                dailySummaries[day] = summary;
+            }
+
+            totalTutorials += (differenceInCalendarDays(end, start) + 1);
+            if(log.hasNight) {
+                let nightDays = differenceInCalendarDays(end, start);
+                if (log.arrivesPrior) nightDays++;
+                totalNights += nightDays > 0 ? nightDays : 0;
+            }
+            if(log.hasCoordination) {
+                 totalCoordinations += (differenceInCalendarDays(end, start) + 1);
+            }
+        }
+    });
+
+    const monthTitle = `Mes de ${monthName.charAt(0).toUpperCase() + monthName.slice(1)}`;
+
+    const dailyLines = Object.keys(dailySummaries)
+        .map(Number)
+        .sort((a, b) => a - b)
+        .map(day => dailySummaries[day]);
+
+    const footer = [
+        `Total: ${totalHours} horas / ${totalTutorials} tutoriales`,
+        `Total noches: ${totalNights}`,
+        `Total coordinaciones: ${totalCoordinations}`
+    ];
+    
+    return [monthTitle, ...dailyLines, '', ...footer].join('\n');
+};
+
 
 export default function SummaryPage() {
     const { user } = useUser();
@@ -59,13 +115,14 @@ export default function SummaryPage() {
         workLogs.forEach(log => {
             totalStats.earnings += log.amount || 0;
             
-            const processLogForMonth = (date: Date, isTutorialDay: boolean, isParticular: boolean, particularDuration: number, dailyAmount: number) => {
+            const processLogForMonth = (date: Date, isTutorialDay: boolean, isParticular: boolean, particularDuration: number, dailyAmount: number, currentLog: WorkLog) => {
                  const monthKey = format(date, 'yyyy-MM');
                  if (!monthlyStats[monthKey]) {
-                    monthlyStats[monthKey] = { earnings: 0, particularHours: 0, tutorialDays: 0, workedDays: new Set() };
+                    monthlyStats[monthKey] = { earnings: 0, particularHours: 0, tutorialDays: 0, workedDays: new Set(), logs: [] };
                 }
                 monthlyStats[monthKey].earnings += dailyAmount;
                 monthlyStats[monthKey].workedDays.add(format(date, 'yyyy-MM-dd'));
+                monthlyStats[monthKey].logs.push(currentLog);
 
                 if(isTutorialDay) {
                     monthlyStats[monthKey].tutorialDays += 1;
@@ -81,7 +138,7 @@ export default function SummaryPage() {
                 const duration = log.duration || 0;
                 totalStats.particularHours += duration;
                 totalStats.workedDays.add(log.date);
-                processLogForMonth(date, false, true, duration, log.amount || 0);
+                processLogForMonth(date, false, true, duration, log.amount || 0, log);
 
             } else if (log.type === 'tutorial' && log.startDate && log.endDate) {
                 const start = parseISO(log.startDate);
@@ -93,7 +150,7 @@ export default function SummaryPage() {
 
                 for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
                     totalStats.workedDays.add(format(d, 'yyyy-MM-dd'));
-                    processLogForMonth(new Date(d), true, false, 0, dailyAmount);
+                    processLogForMonth(new Date(d), true, false, 0, dailyAmount, log);
                 }
             }
         });
@@ -110,6 +167,13 @@ export default function SummaryPage() {
         };
 
     }, [workLogs]);
+
+    const handleSendWhatsApp = (logs: WorkLog[], monthName: string) => {
+        const message = generateWhatsAppMessage(logs, monthName);
+        const encodedMessage = encodeURIComponent(message);
+        const url = `https://api.whatsapp.com/send?phone=&text=${encodedMessage}`;
+        window.open(url, '_blank');
+    };
 
     if (isLoading) {
         return (
@@ -166,6 +230,10 @@ export default function SummaryPage() {
                                 const monthData = stats.monthly![monthKey];
                                 const monthDate = parseISO(`${monthKey}-01`);
                                 const monthName = format(monthDate, 'MMMM yyyy', { locale: es });
+                                const simpleMonthName = format(monthDate, 'MMMM', { locale: es });
+                                
+                                // To get unique logs for this month
+                                const uniqueLogs = [...new Map(monthData.logs.map(item => [item['id'], item])).values()];
                                 
                                 return (
                                     <AccordionItem value={monthKey} key={monthKey}>
@@ -173,11 +241,19 @@ export default function SummaryPage() {
                                             {monthName}
                                         </AccordionTrigger>
                                         <AccordionContent className="pt-2">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-md bg-slate-50 border">
-                                                <StatDisplay icon={DollarSign} label="Ingresos" value={`€${monthData.earnings.toFixed(2)}`} colorClass="text-green-500"/>
-                                                <StatDisplay icon={Clock} label="Horas (Part.)" value={monthData.particularHours.toFixed(1)} unit="h" colorClass="text-blue-500"/>
-                                                <StatDisplay icon={Briefcase} label="Días (Tut.)" value={monthData.tutorialDays} unit="días" colorClass="text-purple-500"/>
-                                                <StatDisplay icon={CalendarIcon} label="Días Trabajados" value={monthData.workedDays.size} unit="días" colorClass="text-indigo-500"/>
+                                            <div className="space-y-4">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-md bg-slate-50 border">
+                                                    <StatDisplay icon={DollarSign} label="Ingresos" value={`€${monthData.earnings.toFixed(2)}`} colorClass="text-green-500"/>
+                                                    <StatDisplay icon={Clock} label="Horas (Part.)" value={monthData.particularHours.toFixed(1)} unit="h" colorClass="text-blue-500"/>
+                                                    <StatDisplay icon={Briefcase} label="Días (Tut.)" value={monthData.tutorialDays} unit="días" colorClass="text-purple-500"/>
+                                                    <StatDisplay icon={CalendarIcon} label="Días Trabajados" value={monthData.workedDays.size} unit="días" colorClass="text-indigo-500"/>
+                                                </div>
+                                                <div className="flex justify-end">
+                                                    <Button onClick={() => handleSendWhatsApp(uniqueLogs, simpleMonthName)}>
+                                                        <MessageCircle className="mr-2 h-4 w-4" />
+                                                        Enviar resumen por WhatsApp
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </AccordionContent>
                                     </AccordionItem>
