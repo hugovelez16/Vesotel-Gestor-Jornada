@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import Link from "next/link";
@@ -110,7 +109,7 @@ export default function MainNav() {
 
   const NavLinks = ({ onClick }: { onClick?: () => void }) => (
     currentNavItems.map((item) => {
-      const isActive = pathname === item.href || (item.href !== '/admin/dashboard' && item.href !== '/dashboard' && pathname.startsWith(item.href));
+      const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href + '/'));
       return (
         <Link
           key={item.label}
