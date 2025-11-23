@@ -21,16 +21,20 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { EditWorkLogDialog } from "@/app/admin/users/[userId]/records/RecordsClient";
 import { CreateWorkLogDialog } from "@/app/admin/users/page";
+import NumberTicker from "@/components/magicui/number-ticker";
 
 
-const StatCard = ({ title, value, icon: Icon, colorClass = "text-primary" }: { title: string, value: string, icon: React.ElementType, colorClass?: string }) => (
+const StatCard = ({ title, value, icon: Icon, colorClass = "text-primary", unit }: { title: string, value: number, icon: React.ElementType, colorClass?: string, unit?: string }) => (
     <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
             <Icon className={`h-4 w-4 ${colorClass}`} />
         </CardHeader>
         <CardContent>
-            <div className="text-2xl font-bold">{value}</div>
+            <div className="flex items-end">
+                <NumberTicker value={value} className="text-2xl font-bold" />
+                {unit && <span className="text-sm font-medium text-muted-foreground ml-1">{unit}</span>}
+            </div>
         </CardContent>
     </Card>
 );
@@ -112,10 +116,10 @@ function UserDashboard() {
       </div>
       
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-             <StatCard title="Ingresos (Mes Actual)" value={`${monthlyStats.totalEarnings.toFixed(2)} €`} icon={DollarSign} colorClass="text-green-500" />
-             <StatCard title="Horas Particulares (Mes)" value={`${monthlyStats.particularHours.toFixed(1)} h`} icon={Clock} colorClass="text-blue-500" />
-             <StatCard title="Días Tutorial (Mes)" value={`${monthlyStats.tutorialDays}`} icon={BookOpen} colorClass="text-purple-500" />
-             <StatCard title="Total Días Trabajados (Mes)" value={`${monthlyStats.totalDaysWorked}`} icon={Briefcase} colorClass="text-indigo-500" />
+             <StatCard title="Ingresos (Mes Actual)" value={monthlyStats.totalEarnings} unit="€" icon={DollarSign} colorClass="text-green-500" />
+             <StatCard title="Horas Particulares (Mes)" value={monthlyStats.particularHours} unit="h" icon={Clock} colorClass="text-blue-500" />
+             <StatCard title="Días Tutorial (Mes)" value={monthlyStats.tutorialDays} unit="días" icon={BookOpen} colorClass="text-purple-500" />
+             <StatCard title="Total Días Trabajados (Mes)" value={monthlyStats.totalDaysWorked} unit="días" icon={Briefcase} colorClass="text-indigo-500" />
         </div>
 
       <div>
@@ -178,11 +182,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
-
-    
-
-    
-
-    
