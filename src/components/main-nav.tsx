@@ -42,6 +42,7 @@ const userNavItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/list", label: "Registros", icon: List },
   { href: "/calendar", label: "Calendario", icon: Calendar },
+  { href: "/summary", label: "Resumen", icon: AreaChart },
 ];
 
 const adminNavItems = [
