@@ -391,13 +391,22 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
   const firestore = useFirestore();
   const { toast } = useToast();
   
+  const isSingleUserMode = users.length === 1;
+
   const resetForm = () => {
       setFormData({ hasCoordination: false, hasNight: false, arrivesPrior: false });
-      if (users.length !== 1) {
+      if (!isSingleUserMode) {
         setSelectedUserId(undefined);
       }
       setLogType('particular');
   };
+
+  useEffect(() => {
+    if (isSingleUserMode) {
+        setSelectedUserId(users[0].uid);
+    }
+  }, [isSingleUserMode, users]);
+
 
   useEffect(() => {
     if (logType === 'particular') {
@@ -510,7 +519,7 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
                   </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                 {users.length > 1 && (
+                 {!isSingleUserMode && (
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="user" className="text-right">
                             Usuario
@@ -1179,7 +1188,7 @@ export default function AdminUsersPage() {
                                 </TableCell>
                             </TableRow>
                             {expandedUserId === user.uid && (
-                              <TableRow key={`${user.uid}-details`}>
+                              <TableRow>
                                   <TableCell colSpan={4} className="p-0">
                                       <Collapsible open={true}>
                                           <CollapsibleContent>
@@ -1246,5 +1255,3 @@ export default function AdminUsersPage() {
     </div>
   );
 }
-
-    
