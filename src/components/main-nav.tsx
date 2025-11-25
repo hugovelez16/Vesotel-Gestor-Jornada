@@ -87,9 +87,7 @@ export default function MainNav() {
   
   const logout = () => {
     if (auth) {
-        signOut(auth).then(() => {
-            router.push('/login');
-        });
+        signOut(auth);
     }
   }
 

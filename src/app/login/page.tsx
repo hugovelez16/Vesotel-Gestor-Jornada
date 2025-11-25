@@ -45,75 +45,21 @@ export default function LoginPage() {
     },
   });
 
-  // This effect handles the redirect result, but with signInWithPopup it's less critical
-  useEffect(() => {
-    if (auth && !user && loginState === 'loading') {
-      getRedirectResult(auth)
-        .catch((error) => {
-          if (error.code !== 'auth/no-redirect-operation') {
-             console.error("Error getting redirect result:", error);
-             toast({ title: "Error de autenticación", description: "No se pudo completar el inicio de sesión.", variant: "destructive" });
-          }
-        })
-    }
-  }, [auth, user, toast, loginState]);
-
   useEffect(() => {
     if (isUserLoading) {
       setLoginState("loading");
       return;
     }
 
-    if (!user) {
-      setLoginState("initial"); // No user, show login button
+    if (user) {
+      router.replace("/dashboard");
       return;
     }
     
-    // If a user is already authenticated, attempt to redirect them.
-    // This handles cases where a logged-in user hits the /login page.
-    if (user && loginState !== "unauthorized" && loginState !== "request_sent") {
-       router.replace("/dashboard");
-    }
+    // User is not authenticated, show the login UI.
+    setLoginState("initial");
 
-
-    // User is authenticated, now check authorization
-    const checkAuthorization = async () => {
-      if (!firestore || !user.email) {
-          setLoginState("initial"); // Should not happen
-          return;
-      }
-      
-      // 1. Check if admin
-      if (user.email === ADMIN_EMAIL) {
-        router.replace("/dashboard");
-        return;
-      }
-
-      // 2. Check if in allowed_users
-      const allowedUsersQuery = query(collection(firestore, `artifacts/${APP_ID}/public/data/allowed_users`), where("email", "==", user.email));
-      const allowedUsersSnapshot = await getDocs(allowedUsersQuery);
-      if (!allowedUsersSnapshot.empty) {
-        router.replace("/dashboard");
-        return;
-      }
-      
-      // 3. User is not authorized, check if they already sent a request
-      const accessRequestQuery = query(collection(firestore, `artifacts/${APP_ID}/public/data/access_requests`), where("email", "==", user.email), where("status", "==", "pending"));
-      const accessRequestSnapshot = await getDocs(accessRequestQuery);
-      if(!accessRequestSnapshot.empty){
-          setLoginState("request_sent");
-      } else {
-          setLoginState("unauthorized");
-          // Pre-fill the form with Google display name
-          form.reset({
-            firstName: user.displayName?.split(' ')[0] || "",
-            lastName: user.displayName?.split(' ').slice(1).join(' ') || "",
-          });
-      }
-    };
-
-    checkAuthorization();
-  }, [user, isUserLoading, firestore, router, form, loginState]);
+  }, [user, isUserLoading, router]);
 
 
   const signInWithGoogle = async () => {
@@ -122,8 +68,35 @@ export default function LoginPage() {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
         try {
-            await signInWithPopup(auth, provider);
-            // The useEffect hook will handle the redirect after state update
+            const result = await signInWithPopup(auth, provider);
+            const loggedInUser = result.user;
+
+            // After successful sign-in, explicitly check authorization before redirecting.
+            if (!firestore || !loggedInUser.email) {
+                setLoginState("unauthorized"); return;
+            }
+             if (loggedInUser.email === ADMIN_EMAIL) {
+                router.replace("/dashboard"); return;
+            }
+            const allowedUsersQuery = query(collection(firestore, `artifacts/${APP_ID}/public/data/allowed_users`), where("email", "==", loggedInUser.email));
+            const allowedUsersSnapshot = await getDocs(allowedUsersQuery);
+            if (!allowedUsersSnapshot.empty) {
+                router.replace("/dashboard"); return;
+            }
+
+            // Not authorized, check for existing request.
+            const accessRequestQuery = query(collection(firestore, `artifacts/${APP_ID}/public/data/access_requests`), where("email", "==", loggedInUser.email), where("status", "==", "pending"));
+            const accessRequestSnapshot = await getDocs(accessRequestQuery);
+            if(!accessRequestSnapshot.empty){
+                setLoginState("request_sent");
+            } else {
+                 setLoginState("unauthorized");
+                 form.reset({
+                    firstName: loggedInUser.displayName?.split(' ')[0] || "",
+                    lastName: loggedInUser.displayName?.split(' ').slice(1).join(' ') || "",
+                 });
+            }
+
         } catch (error: any) {
             console.error("Error with signInWithPopup:", error);
             toast({
@@ -136,11 +109,10 @@ export default function LoginPage() {
     }
   };
 
-  const logout = () => {
+  const logoutAndShowLogin = () => {
       if(auth) {
         signOut(auth).then(() => {
             setLoginState("initial");
-            // No need to push to /login, user state change will handle UI
         });
       }
   }
@@ -260,7 +232,7 @@ export default function LoginPage() {
                 <Button type="submit" className="w-full">
                   Solicitar Acceso
                 </Button>
-                <Button variant="ghost" className="w-full" type="button" onClick={logout}>Usar otra cuenta</Button>
+                <Button variant="ghost" className="w-full" type="button" onClick={logoutAndShowLogin}>Usar otra cuenta</Button>
               </CardFooter>
             </form>
           </Form>
@@ -268,7 +240,7 @@ export default function LoginPage() {
 
         {(loginState === "request_sent") && (
             <CardFooter className="flex flex-col gap-4">
-                <Button variant="ghost" className="w-full" type="button" onClick={logout}>Usar otra cuenta</Button>
+                <Button variant="ghost" className="w-full" type="button" onClick={logoutAndShowLogin}>Usar otra cuenta</Button>
             </CardFooter>
         )}
 

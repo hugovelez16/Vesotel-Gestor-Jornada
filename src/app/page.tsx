@@ -1,9 +1,9 @@
 
 "use client";
-import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/firebase";
-import { Loader2 } from "lucide-react";
+import { useEffect } from "react";
 
 export default function Home() {
   const { user, isUserLoading } = useUser();
@@ -11,7 +11,6 @@ export default function Home() {
 
   useEffect(() => {
     if (isUserLoading) {
-      // Do nothing while loading
       return;
     }
     if (user) {

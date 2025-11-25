@@ -43,9 +43,7 @@ export default function ProfilePage() {
 
     const logout = () => {
       if (auth) {
-        signOut(auth).then(() => {
-          router.push('/login');
-        });
+        signOut(auth);
       }
     }
     
