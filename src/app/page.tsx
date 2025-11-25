@@ -10,16 +10,17 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    if (isUserLoading) {
-      return;
-    }
-    if (user) {
-      router.replace("/dashboard");
-    } else {
-      router.replace("/login");
+    // Solo redirigir cuando la carga del usuario haya terminado.
+    if (!isUserLoading) {
+      if (user) {
+        router.replace("/dashboard");
+      } else {
+        router.replace("/login");
+      }
     }
   }, [user, isUserLoading, router]);
 
+  // Siempre mostrar un loader mientras se determina el estado y se redirige.
   return (
     <div className="flex h-screen w-full items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-4">

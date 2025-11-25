@@ -6,24 +6,20 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import MainNav from "@/components/main-nav";
 import { Loader2 } from "lucide-react";
-import { ADMIN_EMAIL } from "@/lib/config";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
 
   useEffect(() => {
-    if (isUserLoading) {
-      return;
-    }
-
-    if (!user) {
+    // Si la carga ha terminado y no hay usuario, redirigir a login.
+    // Esto actúa como una barrera de seguridad si se intenta acceder directamente a una ruta protegida.
+    if (!isUserLoading && !user) {
       router.replace("/login");
-      return;
     }
-
   }, [isUserLoading, user, router]);
   
+  // Mientras se carga o si no hay usuario (antes de la redirección), mostrar el loader.
   if (isUserLoading || !user) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -35,6 +31,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Si el usuario está cargado y existe, renderizar el layout de la aplicación.
   return (
     <div className="relative flex min-h-screen flex-col bg-background">
       <MainNav />

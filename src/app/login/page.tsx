@@ -7,7 +7,7 @@ import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { VesotelLogo } from "@/components/icons";
-import { signInWithPopup, GoogleAuthProvider, getRedirectResult, signOut } from "firebase/auth";
+import { signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
 import { Loader2 } from "lucide-react";
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
 import { APP_ID, ADMIN_EMAIL } from "@/lib/config";
@@ -51,12 +51,14 @@ export default function LoginPage() {
       return;
     }
 
+    // Si el usuario ya está autenticado, llévalo al dashboard.
+    // Esto previene que un usuario logueado vea la página de login.
     if (user) {
       router.replace("/dashboard");
       return;
     }
     
-    // User is not authenticated, show the login UI.
+    // Si no hay usuario y la carga ha terminado, muestra la UI de login.
     setLoginState("initial");
 
   }, [user, isUserLoading, router]);
@@ -71,20 +73,23 @@ export default function LoginPage() {
             const result = await signInWithPopup(auth, provider);
             const loggedInUser = result.user;
 
-            // After successful sign-in, explicitly check authorization before redirecting.
+            // Después del login exitoso, el useEffect se encargará de la redirección.
+            // Aquí solo comprobamos si necesita solicitar acceso.
             if (!firestore || !loggedInUser.email) {
                 setLoginState("unauthorized"); return;
             }
              if (loggedInUser.email === ADMIN_EMAIL) {
-                router.replace("/dashboard"); return;
+                // Redirección manejada por el useEffect
+                return;
             }
             const allowedUsersQuery = query(collection(firestore, `artifacts/${APP_ID}/public/data/allowed_users`), where("email", "==", loggedInUser.email));
             const allowedUsersSnapshot = await getDocs(allowedUsersQuery);
             if (!allowedUsersSnapshot.empty) {
-                router.replace("/dashboard"); return;
+                 // Redirección manejada por el useEffect
+                return;
             }
 
-            // Not authorized, check for existing request.
+            // No autorizado, comprobar si ya existe una solicitud
             const accessRequestQuery = query(collection(firestore, `artifacts/${APP_ID}/public/data/access_requests`), where("email", "==", loggedInUser.email), where("status", "==", "pending"));
             const accessRequestSnapshot = await getDocs(accessRequestQuery);
             if(!accessRequestSnapshot.empty){
@@ -113,13 +118,14 @@ export default function LoginPage() {
       if(auth) {
         signOut(auth).then(() => {
             setLoginState("initial");
+            form.reset({ firstName: "", lastName: ""});
         });
       }
   }
 
   async function onSubmitAccessRequest(values: z.infer<typeof formSchema>) {
-    if (!user || !user.email || !firestore) {
-      toast({ title: "Error", description: "No se ha podido identificar al usuario.", variant: "destructive" });
+    if (!auth?.currentUser || !auth.currentUser.email || !firestore) {
+      toast({ title: "Error", description: "No se ha podido identificar al usuario. Por favor, inicia sesión de nuevo.", variant: "destructive" });
       return;
     }
     
@@ -127,7 +133,7 @@ export default function LoginPage() {
     try {
       await addDoc(collection(firestore, `artifacts/${APP_ID}/public/data/access_requests`), {
         ...values,
-        email: user.email,
+        email: auth.currentUser.email,
         status: "pending",
         createdAt: serverTimestamp(),
       });
@@ -151,7 +157,7 @@ export default function LoginPage() {
   );
 
 
-  if (loginState === "loading" || isUserLoading) {
+  if (loginState === "loading" || isUserLoading || user) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -225,7 +231,7 @@ export default function LoginPage() {
                 />
                 <FormItem>
                   <FormLabel>Email</FormLabel>
-                  <Input value={user?.email ?? ''} disabled />
+                  <Input value={auth?.currentUser?.email ?? ''} disabled />
                 </FormItem>
               </CardContent>
               <CardFooter className="flex flex-col gap-4">
