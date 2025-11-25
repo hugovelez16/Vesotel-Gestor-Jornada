@@ -550,7 +550,7 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
                       <>
                           <div className="grid grid-cols-4 items-center gap-4">
                               <Label htmlFor="date" className="text-right">Fecha</Label>
-                               <Popover>
+                               <Popover modal={false}>
                                     <PopoverTrigger asChild>
                                         <Button
                                             variant={"outline"}
@@ -578,7 +578,7 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
                       <>
                           <div className="grid grid-cols-4 items-center gap-4">
                               <Label htmlFor="startDate" className="text-right">Fecha Inicio</Label>
-                               <Popover>
+                               <Popover modal={false}>
                                     <PopoverTrigger asChild>
                                         <Button
                                             variant={"outline"}
@@ -595,7 +595,7 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
                           </div>
                           <div className="grid grid-cols-4 items-center gap-4">
                               <Label htmlFor="endDate" className="text-right">Fecha Fin</Label>
-                               <Popover>
+                               <Popover modal={false}>
                                     <PopoverTrigger asChild>
                                         <Button
                                             variant={"outline"}
@@ -834,7 +834,7 @@ export function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate, chil
                         <>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="date" className="text-right">Fecha</Label>
-                                <Popover>
+                                <Popover modal={false}>
                                     <PopoverTrigger asChild>
                                         <Button
                                             variant={"outline"}
@@ -862,7 +862,7 @@ export function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate, chil
                         <>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="startDate" className="text-right">Fecha Inicio</Label>
-                                <Popover>
+                                <Popover modal={false}>
                                     <PopoverTrigger asChild>
                                         <Button
                                             variant={"outline"}
@@ -879,7 +879,7 @@ export function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate, chil
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="endDate" className="text-right">Fecha Fin</Label>
-                                <Popover>
+                                <Popover modal={false}>
                                     <PopoverTrigger asChild>
                                         <Button
                                             variant={"outline"}
@@ -1071,7 +1071,7 @@ export default function AdminUsersPage() {
   const renderTableBody = (
     isLoading: boolean,
     data: any[] | null,
-    renderRow: (item: any, index: number) => (JSX.Element | null)[],
+    renderRow: (item: any, index: number) => React.ReactNode,
     emptyMessage: string,
     colSpan: number
   ) => {
@@ -1127,13 +1127,13 @@ export default function AdminUsersPage() {
         <TabsList className="grid w-full grid-cols-2 bg-slate-100 p-1">
             <TabsTrigger 
               value="users" 
-              className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-slate-200"
+              className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm"
             >
               Usuarios Activos
             </TabsTrigger>
             <TabsTrigger 
               value="requests"
-              className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-slate-200"
+              className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm"
             >
               Solicitudes Pendientes {pendingRequests && pendingRequests.length > 0 && <Badge className="ml-2">{pendingRequests.length}</Badge>}
             </TabsTrigger>
@@ -1157,9 +1157,10 @@ export default function AdminUsersPage() {
                 <TableBody>
                     {renderTableBody(
                         isLoading,
-                        users,
-                         (user: UserProfile) => [
-                            <TableRow key={user.uid} onClick={() => handleRowClick(user.uid)} className="cursor-pointer">
+                        users?.filter(u => u.email !== ADMIN_EMAIL),
+                         (user: UserProfile) => (
+                          <React.Fragment key={user.uid}>
+                            <TableRow onClick={() => handleRowClick(user.uid)} className="cursor-pointer">
                                 <TableCell>
                                   {user.firstName} {user.lastName}
                                 </TableCell>
@@ -1176,8 +1177,8 @@ export default function AdminUsersPage() {
                                 <TableCell>
                                   {expandedUserId === user.uid ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                                 </TableCell>
-                            </TableRow>,
-                            expandedUserId === user.uid ? (
+                            </TableRow>
+                            {expandedUserId === user.uid && (
                               <TableRow key={`${user.uid}-details`}>
                                   <TableCell colSpan={4} className="p-0">
                                       <Collapsible open={true}>
@@ -1187,8 +1188,9 @@ export default function AdminUsersPage() {
                                       </Collapsible>
                                   </TableCell>
                               </TableRow>
-                            ) : null,
-                        ],
+                            )}
+                          </React.Fragment>
+                        ),
                         "No hay usuarios para mostrar.",
                         4
                     )}
