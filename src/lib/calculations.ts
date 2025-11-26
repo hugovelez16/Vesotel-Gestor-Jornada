@@ -1,12 +1,56 @@
 
-
-import { differenceInCalendarDays, parseISO } from 'date-fns';
+import { differenceInCalendarDays, parseISO, isSameMonth, format } from 'date-fns';
 import type { WorkLog, UserSettings } from '@/lib/types';
 
-const IRPF_FACTOR = 0.9352;
+export const IRPF_FACTOR = 0.9352;
 
-function calculateParticular(log: Partial<WorkLog>, settings: UserSettings) {
-  const duration = log.duration ?? 0;
+export function calculateMonthlyStats(workLogs: WorkLog[], month: Date) {
+    let totalEarnings = 0;
+    let particularHours = 0;
+    let tutorialDays = 0;
+    const uniqueDays = new Set<string>();
+
+    workLogs.forEach(entry => {
+        if (entry.type === 'particular' && entry.date && isSameMonth(parseISO(entry.date), month)) {
+            totalEarnings += (entry.amount || 0);
+            particularHours += (entry.duration || 0);
+            uniqueDays.add(entry.date);
+        } else if (entry.type === 'tutorial' && entry.startDate && entry.endDate) {
+            const start = parseISO(entry.startDate);
+            const end = parseISO(entry.endDate);
+            const tutorialDuration = differenceInCalendarDays(end, start) + 1;
+            const dailyEarning = tutorialDuration > 0 ? (entry.amount || 0) / tutorialDuration : 0;
+            
+            for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
+                if (isSameMonth(dt, month)) {
+                    totalEarnings += dailyEarning;
+                    tutorialDays += 1;
+                    const dayString = format(dt, 'yyyy-MM-dd');
+                    uniqueDays.add(dayString);
+                }
+            }
+        }
+    });
+
+    return {
+        totalEarnings,
+        totalDaysWorked: uniqueDays.size,
+        tutorialDays,
+        particularHours,
+    };
+}
+
+function calculateDuration(log: Partial<WorkLog>): number {
+    if (log.duration) return log.duration;
+    if (log.startTime && log.endTime) {
+        const [startH, startM] = log.startTime.split(':').map(Number);
+        const [endH, endM] = log.endTime.split(':').map(Number);
+        return (endH - startH) + (endM - startM) / 60;
+    }
+    return 0;
+}
+
+function calculateParticular(log: Partial<WorkLog>, settings: UserSettings, duration: number) {
   const rate = settings.hourlyRate ?? 0;
   const coordination = log.hasCoordination ? (settings.coordinationRate ?? 10) : 0;
   
@@ -51,13 +95,8 @@ export function calculateEarnings(log: Partial<WorkLog>, settings: UserSettings)
   let calculationResult: { total: number, rateApplied: number, duration: number };
 
   if (log.type === 'particular') {
-     // Ensure duration is calculated if not present
-    if (!log.duration && log.startTime && log.endTime) {
-        const [startH, startM] = log.startTime.split(':').map(Number);
-        const [endH, endM] = log.endTime.split(':').map(Number);
-        log.duration = (endH - startH) + (endM - startM) / 60;
-    }
-    calculationResult = calculateParticular(log, settings);
+    const duration = calculateDuration(log);
+    calculationResult = calculateParticular(log, settings, duration);
   } else if (log.type === 'tutorial') {
     calculationResult = calculateTutorial(log, settings);
   } else {

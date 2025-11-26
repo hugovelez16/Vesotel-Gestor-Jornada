@@ -12,6 +12,7 @@ import { collection, doc } from "firebase/firestore";
 import { format, isSameMonth, parseISO, differenceInCalendarDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CreateWorkLogDialog } from "@/app/admin/users/page";
+import { calculateMonthlyStats } from "@/lib/calculations";
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { WorkLogDetailsDialog, EditWorkLogDialog, DeleteWorkLogAlert } from "@/app/admin/users/page";
@@ -84,43 +85,8 @@ function UserDashboard() {
 
     useEffect(() => {
         if (!workLogs) return;
-
         const now = new Date();
-
-        let totalEarnings = 0;
-        let particularHours = 0;
-        let tutorialDays = 0;
-        const uniqueDays = new Set<string>();
-
-        workLogs.forEach(entry => {
-            if (entry.type === 'particular' && entry.date && isSameMonth(parseISO(entry.date), now)) {
-                totalEarnings += (entry.amount || 0);
-                particularHours += (entry.duration || 0);
-                uniqueDays.add(entry.date);
-            } else if (entry.type === 'tutorial' && entry.startDate && entry.endDate) {
-                const start = parseISO(entry.startDate);
-                const end = parseISO(entry.endDate);
-                 const tutorialDuration = differenceInCalendarDays(end, start) + 1;
-                const dailyEarning = tutorialDuration > 0 ? (entry.amount || 0) / tutorialDuration : 0;
-                
-                for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
-                    if (isSameMonth(dt, now)) {
-                       totalEarnings += dailyEarning;
-                       tutorialDays += 1;
-                       const dayString = format(dt, 'yyyy-MM-dd');
-                       uniqueDays.add(dayString);
-                    }
-                }
-            }
-        });
-
-        setMonthlyStats({
-            totalEarnings,
-            totalDaysWorked: uniqueDays.size,
-            tutorialDays,
-            particularHours,
-        });
-
+        setMonthlyStats(calculateMonthlyStats(workLogs, now));
     }, [workLogs]);
 
     const sortedWorkLogs = useMemo(() => {

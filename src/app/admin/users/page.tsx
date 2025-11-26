@@ -31,8 +31,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar, RangeCalendar } from "@/components/ui/calendar-rac";
+import { getLocalTimeZone, parseDate, today } from "@internationalized/date";
+import type { DateValue } from "react-aria-components";
 import { cn } from "@/lib/utils";
 import { calculateEarnings } from "@/lib/calculations";
 import { es } from 'date-fns/locale';
@@ -420,10 +422,20 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
     }
   }, [formData.hasNight]);
 
-  const handleDateChange = (field: 'date' | 'startDate' | 'endDate', value: Date | undefined) => {
+  const handleDateChange = (field: 'date' | 'startDate' | 'endDate', value: DateValue) => {
     if (value) {
-      setFormData(prev => ({ ...prev, [field]: format(value, 'yyyy-MM-dd') }));
+      setFormData(prev => ({ ...prev, [field]: value.toString() }));
     }
+  };
+
+  const handleRangeChange = (range: { start: DateValue, end: DateValue } | null) => {
+      if (range) {
+          setFormData(prev => ({
+              ...prev,
+              startDate: range.start.toString(),
+              endDate: range.end.toString()
+          }));
+      }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -570,7 +582,10 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={formData.date ? parseISO(formData.date) : undefined} onSelect={(d) => handleDateChange('date', d)} initialFocus locale={es} weekStartsOn={1} />
+                                        <Calendar 
+                                            value={formData.date ? parseDate(formData.date) : undefined} 
+                                            onChange={(d: DateValue) => handleDateChange('date', d)} 
+                                        />
                                     </PopoverContent>
                                 </Popover>
                           </div>
@@ -584,42 +599,33 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
                           </div>
                       </>
                   ) : (
-                      <>
-                          <div className="grid grid-cols-4 items-center gap-4">
-                              <Label htmlFor="startDate" className="text-right">Fecha Inicio</Label>
-                               <Popover modal={false}>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn("col-span-3 justify-start text-left font-normal", !formData.startDate && "text-muted-foreground")}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {formData.startDate ? format(new Date(formData.startDate), "PPP", { locale: es }) : <span>Elige una fecha</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={formData.startDate ? parseISO(formData.startDate) : undefined} onSelect={(d) => handleDateChange('startDate', d)} initialFocus locale={es} weekStartsOn={1} />
-                                    </PopoverContent>
-                                </Popover>
-                          </div>
-                          <div className="grid grid-cols-4 items-center gap-4">
-                              <Label htmlFor="endDate" className="text-right">Fecha Fin</Label>
-                               <Popover modal={false}>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn("col-span-3 justify-start text-left font-normal", !formData.endDate && "text-muted-foreground")}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {formData.endDate ? format(new Date(formData.endDate), "PPP", { locale: es }) : <span>Elige una fecha</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={formData.endDate ? parseISO(formData.endDate) : undefined} onSelect={(d) => handleDateChange('endDate', d)} initialFocus locale={es} weekStartsOn={1} />
-                                    </PopoverContent>
-                                </Popover>
-                          </div>
-                      </>
+                      <div className="grid grid-cols-4 items-start gap-4">
+                          <Label className="text-right pt-2">Rango de Fechas</Label>
+                           <Popover modal={false}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant={"outline"}
+                                        className={cn("col-span-3 justify-start text-left font-normal", (!formData.startDate || !formData.endDate) && "text-muted-foreground")}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {formData.startDate && formData.endDate ? (
+                                            <>
+                                                {format(parseISO(formData.startDate), "PPP", { locale: es })} -{" "}
+                                                {format(parseISO(formData.endDate), "PPP", { locale: es })}
+                                            </>
+                                        ) : (
+                                            <span>Selecciona un rango</span>
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <RangeCalendar
+                                        value={formData.startDate && formData.endDate ? { start: parseDate(formData.startDate), end: parseDate(formData.endDate) } : null}
+                                        onChange={(range) => handleRangeChange(range)}
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                      </div>
                   )}
                   
                   <div className="grid grid-cols-4 items-center gap-4">
@@ -750,9 +756,19 @@ export function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate, chil
         }
     }, [formData.hasNight]);
 
-    const handleDateChange = (field: 'date' | 'startDate' | 'endDate', value: Date | undefined) => {
+    const handleDateChange = (field: 'date' | 'startDate' | 'endDate', value: DateValue) => {
         if (value) {
-            setFormData(prev => ({ ...prev, [field]: format(value, 'yyyy-MM-dd') }));
+            setFormData(prev => ({ ...prev, [field]: value.toString() }));
+        }
+    };
+
+    const handleRangeChange = (range: { start: DateValue, end: DateValue } | null) => {
+        if (range) {
+            setFormData(prev => ({
+                ...prev,
+                startDate: range.start.toString(),
+                endDate: range.end.toString()
+            }));
         }
     };
 
@@ -854,7 +870,10 @@ export function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate, chil
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={formData.date ? parseISO(formData.date) : undefined} onSelect={(d) => handleDateChange('date', d)} initialFocus locale={es} weekStartsOn={1}/>
+                                        <Calendar 
+                                            value={formData.date ? parseDate(formData.date) : undefined} 
+                                            onChange={(d: DateValue) => handleDateChange('date', d)} 
+                                        />
                                     </PopoverContent>
                                 </Popover>
                             </div>
@@ -868,42 +887,33 @@ export function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate, chil
                             </div>
                         </>
                     ) : (
-                        <>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="startDate" className="text-right">Fecha Inicio</Label>
-                                <Popover modal={false}>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn("col-span-3 justify-start text-left font-normal", !formData.startDate && "text-muted-foreground")}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {formData.startDate ? format(parseISO(formData.startDate), 'PPP', { locale: es }) : <span>Elige una fecha</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={formData.startDate ? parseISO(formData.startDate) : undefined} onSelect={(d) => handleDateChange('startDate', d)} initialFocus locale={es} weekStartsOn={1}/>
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="endDate" className="text-right">Fecha Fin</Label>
-                                <Popover modal={false}>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn("col-span-3 justify-start text-left font-normal", !formData.endDate && "text-muted-foreground")}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {formData.endDate ? format(parseISO(formData.endDate), 'PPP', { locale: es }) : <span>Elige una fecha</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={formData.endDate ? parseISO(formData.endDate) : undefined} onSelect={(d) => handleDateChange('endDate', d)} initialFocus locale={es} weekStartsOn={1}/>
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                        </>
+                        <div className="grid grid-cols-4 items-start gap-4">
+                            <Label className="text-right pt-2">Rango de Fechas</Label>
+                             <Popover modal={false}>
+                                  <PopoverTrigger asChild>
+                                      <Button
+                                          variant={"outline"}
+                                          className={cn("col-span-3 justify-start text-left font-normal", (!formData.startDate || !formData.endDate) && "text-muted-foreground")}
+                                      >
+                                          <CalendarIcon className="mr-2 h-4 w-4" />
+                                          {formData.startDate && formData.endDate ? (
+                                              <>
+                                                  {format(parseISO(formData.startDate), "PPP", { locale: es })} -{" "}
+                                                  {format(parseISO(formData.endDate), "PPP", { locale: es })}
+                                              </>
+                                          ) : (
+                                              <span>Selecciona un rango</span>
+                                          )}
+                                      </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0" align="start">
+                                      <RangeCalendar
+                                          value={formData.startDate && formData.endDate ? { start: parseDate(formData.startDate), end: parseDate(formData.endDate) } : null}
+                                          onChange={(range) => handleRangeChange(range)}
+                                      />
+                                  </PopoverContent>
+                              </Popover>
+                        </div>
                     )}
 
                     <div className="grid grid-cols-4 items-center gap-4">

@@ -1,12 +1,12 @@
 
 export const firebaseConfig = {
-  apiKey: "AIzaSyAkkt59I1DKzT_EBm33NFMwEOJGnJkC5kA",
-  authDomain: "vesotel-gestor-jornada.firebaseapp.com",
-  projectId: "vesotel-gestor-jornada",
-  storageBucket: "vesotel-gestor-jornada.appspot.com",
-  messagingSenderId: "1088612949766",
-  appId: "1:1088612949766:web:f1bb7c2bf29563dc434887"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
 export const APP_ID = "vesotel-app-v1";
-export const ADMIN_EMAIL = "hugo@vesotel.com";
+export const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
