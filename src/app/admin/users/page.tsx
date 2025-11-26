@@ -395,6 +395,8 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
   
   const isSingleUserMode = users.length === 1;
 
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
   const resetForm = () => {
       setFormData({ hasCoordination: false, hasNight: false, arrivesPrior: false });
       if (!isSingleUserMode) {
@@ -435,6 +437,9 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
               startDate: range.start.toString(),
               endDate: range.end.toString()
           }));
+          if (range.end) {
+              setIsCalendarOpen(false);
+          }
       }
   };
 
@@ -449,13 +454,18 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
 
 
   const handleSubmit = async () => {
-     if (!firestore || !selectedUserId) {
+     let targetUserId = selectedUserId;
+     if (!targetUserId && users.length === 1) {
+         targetUserId = users[0].uid;
+     }
+
+     if (!firestore || !targetUserId) {
         toast({title: "Error", description: "Por favor, selecciona un usuario.", variant: "destructive"});
         return;
     };
     setIsLoading(true);
 
-    const userSetting = allUserSettings.find(s => s.userId === selectedUserId);
+    const userSetting = allUserSettings.find(s => s.userId === targetUserId);
     if(!userSetting) {
         toast({title: "Error", description: "No se encontraron los ajustes para este usuario.", variant: "destructive"});
         setIsLoading(false);
@@ -480,7 +490,7 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
 
     let logData: Partial<WorkLog> = {
         ...formData,
-        userId: selectedUserId,
+        userId: targetUserId,
         type: logType,
         createdAt: serverTimestamp() as any,
     };
@@ -492,7 +502,7 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
     logData.duration = duration;
 
     try {
-        const logCollectionRef = collection(firestore, `artifacts/${APP_ID}/users/${selectedUserId}/work_logs`);
+        const logCollectionRef = collection(firestore, `artifacts/${APP_ID}/users/${targetUserId}/work_logs`);
         await addDoc(logCollectionRef, logData);
         toast({title: "Éxito", description: "Registro de trabajo añadido correctamente."});
         setOpen(false);
@@ -571,20 +581,20 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
                       <>
                           <div className="grid grid-cols-4 items-center gap-4">
                               <Label htmlFor="date" className="text-right">Fecha</Label>
-                               <Popover modal={false}>
+                               <Popover modal={false} open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                                     <PopoverTrigger asChild>
                                         <Button
                                             variant={"outline"}
-                                            className={cn("col-span-3 justify-start text-left font-normal", !formData.date && "text-muted-foreground")}
+                                            className={cn("col-span-3 justify-start text-left font-normal truncate", !formData.date && "text-muted-foreground")}
                                         >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
                                             {formData.date ? format(new Date(formData.date), "PPP", { locale: es }) : <span>Elige una fecha</span>}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
                                         <Calendar 
                                             value={formData.date ? parseDate(formData.date) : undefined} 
-                                            onChange={(d: DateValue) => handleDateChange('date', d)} 
+                                            onChange={(d: DateValue) => { handleDateChange('date', d); setIsCalendarOpen(false); }} 
                                         />
                                     </PopoverContent>
                                 </Popover>
@@ -601,13 +611,13 @@ export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, child
                   ) : (
                       <div className="grid grid-cols-4 items-start gap-4">
                           <Label className="text-right pt-2">Rango de Fechas</Label>
-                           <Popover modal={false}>
+                           <Popover modal={false} open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                                 <PopoverTrigger asChild>
                                     <Button
                                         variant={"outline"}
-                                        className={cn("col-span-3 justify-start text-left font-normal", (!formData.startDate || !formData.endDate) && "text-muted-foreground")}
+                                        className={cn("col-span-3 justify-start text-left font-normal truncate", (!formData.startDate || !formData.endDate) && "text-muted-foreground")}
                                     >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
                                         {formData.startDate && formData.endDate ? (
                                             <>
                                                 {format(parseISO(formData.startDate), "PPP", { locale: es })} -{" "}
@@ -731,6 +741,7 @@ export function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkL
 
 export function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate, children }: { log: WorkLog, userId: string, userSettings: UserSettings | null, onLogUpdate: () => void, children?: React.ReactNode }) {
     const [open, setOpen] = useState(false);
+    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [logType, setLogType] = useState<'particular' | 'tutorial'>(log.type);
     const [formData, setFormData] = useState<Partial<WorkLog>>({ ...log });
@@ -769,6 +780,9 @@ export function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate, chil
                 startDate: range.start.toString(),
                 endDate: range.end.toString()
             }));
+            if (range.end) {
+                setIsCalendarOpen(false);
+            }
         }
     };
 
@@ -859,20 +873,20 @@ export function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate, chil
                         <>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="date" className="text-right">Fecha</Label>
-                                <Popover modal={false}>
+                                <Popover modal={false} open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                                     <PopoverTrigger asChild>
                                         <Button
                                             variant={"outline"}
-                                            className={cn("col-span-3 justify-start text-left font-normal", !formData.date && "text-muted-foreground")}
+                                            className={cn("col-span-3 justify-start text-left font-normal truncate", !formData.date && "text-muted-foreground")}
                                         >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
                                             {formData.date ? format(parseISO(formData.date), 'PPP', { locale: es }) : <span>Elige una fecha</span>}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
                                         <Calendar 
                                             value={formData.date ? parseDate(formData.date) : undefined} 
-                                            onChange={(d: DateValue) => handleDateChange('date', d)} 
+                                            onChange={(d: DateValue) => { handleDateChange('date', d); setIsCalendarOpen(false); }} 
                                         />
                                     </PopoverContent>
                                 </Popover>
@@ -889,13 +903,13 @@ export function EditWorkLogDialog({ log, userId, userSettings, onLogUpdate, chil
                     ) : (
                         <div className="grid grid-cols-4 items-start gap-4">
                             <Label className="text-right pt-2">Rango de Fechas</Label>
-                             <Popover modal={false}>
+                             <Popover modal={false} open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                                   <PopoverTrigger asChild>
                                       <Button
                                           variant={"outline"}
-                                          className={cn("col-span-3 justify-start text-left font-normal", (!formData.startDate || !formData.endDate) && "text-muted-foreground")}
+                                          className={cn("col-span-3 justify-start text-left font-normal truncate", (!formData.startDate || !formData.endDate) && "text-muted-foreground")}
                                       >
-                                          <CalendarIcon className="mr-2 h-4 w-4" />
+                                          <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
                                           {formData.startDate && formData.endDate ? (
                                               <>
                                                   {format(parseISO(formData.startDate), "PPP", { locale: es })} -{" "}

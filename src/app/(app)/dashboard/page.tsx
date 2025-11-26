@@ -110,14 +110,14 @@ function UserDashboard() {
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">Resumen de tu actividad laboral del mes actual.</p>
         </div>
-         {profile && settings && (
+         {user && (
              <CreateWorkLogDialog
-                users={[profile]}
-                allUserSettings={[settings]}
+                users={profile ? [profile] : [{ uid: user.uid, email: user.email || '', firstName: 'Usuario', lastName: '', role: 'user', createdAt: null }]}
+                allUserSettings={settings ? [settings] : [{ userId: user.uid, firstName: 'Usuario', lastName: '', hourlyRate: 0, dailyRate: 0, coordinationRate: 10, nightRate: 30, isGross: false }]}
                 onLogUpdate={handleLogUpdate}
             >
-                <Button>
-                    <PlusCircle className="mr-2 h-4 w-4" />
+                <Button disabled={isLoadingProfile || isLoadingSettings}>
+                    {isLoadingProfile || isLoadingSettings ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
                     Añadir Registro
                 </Button>
             </CreateWorkLogDialog>
