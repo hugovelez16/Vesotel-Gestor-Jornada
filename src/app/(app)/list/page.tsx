@@ -19,7 +19,9 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Loader2, PlusCircle, Edit, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { CreateWorkLogDialog, DeleteWorkLogAlert, EditWorkLogDialog, WorkLogDetailsDialog } from "@/app/admin/users/page";
+import { DeleteWorkLogAlert, EditWorkLogDialog } from "@/app/admin/users/page";
+import { WorkLogDetailsDialog } from "@/components/work-log/work-log-details-dialog";
+import { UserCreateWorkLogDialog } from "@/components/work-log/user-dialog";
 
 
 export default function ListPage() {
@@ -90,16 +92,16 @@ export default function ListPage() {
           <p className="text-muted-foreground">Todos tus registros de trabajo en un solo lugar.</p>
         </div>
         {profile && settings && (
-          <CreateWorkLogDialog
-            users={[profile]}
-            allUserSettings={[settings]}
+          <UserCreateWorkLogDialog
+            user={profile}
+            userSettings={settings}
             onLogUpdate={handleLogUpdate}
           >
             <Button>
               <PlusCircle className="mr-2 h-4 w-4" />
               Añadir Registro
             </Button>
-          </CreateWorkLogDialog>
+          </UserCreateWorkLogDialog>
         )}
       </div>
       <div className="rounded-lg border bg-card overflow-hidden">

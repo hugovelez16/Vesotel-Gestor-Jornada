@@ -7,10 +7,14 @@ import { collection } from 'firebase/firestore';
 import { APP_ID } from '@/lib/config';
 import { EventCalendar, type CalendarEvent } from "@/components/event-calendar";
 import { parseISO, setHours, setMinutes } from 'date-fns';
+import { WorkLogDetailsDialog } from "@/components/work-log/work-log-details-dialog";
+import { useState } from 'react';
 
 export default function CalendarPage() {
     const { user } = useUser();
     const firestore = useFirestore();
+    const [selectedLog, setSelectedLog] = useState<WorkLog | null>(null);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
 
     const workLogsRef = useMemoFirebase(
         () => user ? collection(firestore, `artifacts/${APP_ID}/users/${user.uid}/work_logs`) : null,
@@ -66,6 +70,15 @@ export default function CalendarPage() {
         });
     }, [workLogs]);
 
+    const handleEventClick = (event: CalendarEvent) => {
+        if (!workLogs) return;
+        const log = workLogs.find(l => l.id === event.id);
+        if (log) {
+            setSelectedLog(log);
+            setIsDialogOpen(true);
+        }
+    };
+
     return (
         <div className="space-y-8 h-full flex flex-col">
             <div>
@@ -76,8 +89,15 @@ export default function CalendarPage() {
                  <EventCalendar
                     events={events}
                     initialView="month"
+                    onEventClick={handleEventClick}
+                    showAddButton={false}
                 />
             </div>
+            <WorkLogDetailsDialog 
+                log={selectedLog} 
+                isOpen={isDialogOpen} 
+                onOpenChange={setIsDialogOpen} 
+            />
         </div>
     );
 }

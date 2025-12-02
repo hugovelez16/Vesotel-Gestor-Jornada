@@ -53,6 +53,8 @@ export interface EventCalendarProps {
   onEventDelete?: (eventId: string) => void;
   className?: string;
   initialView?: CalendarView;
+  onEventClick?: (event: CalendarEvent) => void;
+  showAddButton?: boolean;
 }
 
 export function EventCalendar({
@@ -62,6 +64,8 @@ export function EventCalendar({
   onEventDelete,
   className,
   initialView = "month",
+  onEventClick,
+  showAddButton = true,
 }: EventCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<CalendarView>(initialView);
@@ -139,8 +143,12 @@ export function EventCalendar({
 
   const handleEventSelect = (event: CalendarEvent) => {
     console.log("Event selected:", event); // Debug log
-    setSelectedEvent(event);
-    setIsEventDialogOpen(true);
+    if (onEventClick) {
+      onEventClick(event);
+    } else {
+      setSelectedEvent(event);
+      setIsEventDialogOpen(true);
+    }
   };
 
   const handleEventCreate = (startTime: Date) => {
@@ -347,6 +355,7 @@ export function EventCalendar({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            {showAddButton && (
             <Button
               className="max-[479px]:aspect-square max-[479px]:p-0!"
               onClick={() => {
@@ -362,6 +371,7 @@ export function EventCalendar({
               />
               <span className="max-sm:sr-only">New event</span>
             </Button>
+            )}
           </div>
         </div>
 
