@@ -105,7 +105,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
   return (
     <FirebaseContext.Provider value={contextValue}>
-      <FirebaseErrorListener />
+      {/* <FirebaseErrorListener /> */}
       {children}
     </FirebaseContext.Provider>
   );
