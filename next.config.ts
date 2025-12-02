@@ -2,11 +2,16 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   output: 'export',
+  productionBrowserSourceMaps: false, // Disable source maps in production for faster builds
+  compress: true, // Enable gzip compression
   typescript: {
     ignoreBuildErrors: true,
   },
   eslint: {
     ignoreDuringBuilds: true,
+  },
+  experimental: {
+    optimizePackageImports: ['lucide-react', 'date-fns'],
   },
   images: {
     unoptimized: true,
