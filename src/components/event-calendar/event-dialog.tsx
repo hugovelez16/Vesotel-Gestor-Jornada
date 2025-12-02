@@ -7,13 +7,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   CalendarEvent,
   EventColor,
-} from "@/components/event-calendar";
+} from ".";
 import {
   DefaultEndHour,
   DefaultStartHour,
   EndHour,
   StartHour,
-} from "@/components/constants";
+} from "./constants";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";

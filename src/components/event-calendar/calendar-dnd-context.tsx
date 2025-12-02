@@ -26,7 +26,7 @@ import {
 import {
   type CalendarEvent,
   EventItem,
-} from "@/components/event-calendar";
+} from ".";
 
 // Define the context type
 type CalendarDndContextType = {

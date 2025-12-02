@@ -9,7 +9,7 @@ import {
   type CalendarEvent,
   EventItem,
   useCalendarDnd,
-} from "@/components/event-calendar";
+} from ".";
 
 interface DraggableEventProps {
   event: CalendarEvent;
@@ -37,7 +37,7 @@ export function DraggableEvent({
   "aria-hidden": ariaHidden,
 }: DraggableEventProps) {
   const { activeId } = useCalendarDnd();
-  const elementRef = useRef<HTMLDivElement>(null);
+  const elementRef = useRef<HTMLDivElement | null>(null);
   const [dragHandlePosition, setDragHandlePosition] = useState<{
     x: number;
     y: number;

@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef } from "react";
 import {
   type CalendarEvent,
   EventItem,
-} from "@/components/event-calendar";
+} from ".";
 
 interface EventsPopupProps {
   date: Date;

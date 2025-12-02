@@ -27,8 +27,8 @@ import {
   getSpanningEventsForDay,
   sortEvents,
   useEventVisibility,
-} from "@/components/event-calendar";
-import { DefaultStartHour } from "@/components/constants";
+} from ".";
+import { DefaultStartHour } from "./constants";
 import {
   Popover,
   PopoverContent,
