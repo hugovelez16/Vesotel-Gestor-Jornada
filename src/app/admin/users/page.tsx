@@ -42,6 +42,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from 'next/link';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AdminCreateWorkLogDialog } from "@/components/work-log/admin-dialog";
 
 
 function MonthlySummary({ userId }: { userId: string }) {
@@ -380,305 +381,7 @@ function UserDetailContent({ userId, onUserUpdate }: { userId: string, onUserUpd
 }
 
 
-export function CreateWorkLogDialog({ users, allUserSettings, onLogUpdate, children }: { users: UserProfile[], allUserSettings: UserSettings[], onLogUpdate?: () => void, children?: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [logType, setLogType] = useState<'particular' | 'tutorial'>('particular');
-  const [selectedUserId, setSelectedUserId] = useState<string | undefined>(users.length === 1 ? users[0].uid : undefined);
-  const [formData, setFormData] = useState<Partial<WorkLog>>({
-      hasCoordination: false,
-      hasNight: false,
-      arrivesPrior: false,
-  });
-  const firestore = useFirestore();
-  const { toast } = useToast();
-  
-  const isSingleUserMode = users.length === 1;
 
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-
-  const resetForm = () => {
-      setFormData({ hasCoordination: false, hasNight: false, arrivesPrior: false });
-      if (!isSingleUserMode) {
-        setSelectedUserId(undefined);
-      }
-      setLogType('particular');
-  };
-
-  useEffect(() => {
-    if (isSingleUserMode) {
-        setSelectedUserId(users[0].uid);
-    }
-  }, [isSingleUserMode, users]);
-
-
-  useEffect(() => {
-    if (logType === 'particular') {
-        setFormData(prev => ({...prev, arrivesPrior: false, hasNight: false}));
-    }
-  }, [logType]);
-
-  useEffect(() => {
-    if (!formData.hasNight) {
-        setFormData(prev => ({...prev, arrivesPrior: false}));
-    }
-  }, [formData.hasNight]);
-
-  const handleDateChange = (field: 'date' | 'startDate' | 'endDate', value: DateValue) => {
-    if (value) {
-      setFormData(prev => ({ ...prev, [field]: value.toString() }));
-    }
-  };
-
-  const handleRangeChange = (range: { start: DateValue, end: DateValue } | null) => {
-      if (range) {
-          setFormData(prev => ({
-              ...prev,
-              startDate: range.start.toString(),
-              endDate: range.end.toString()
-          }));
-          if (range.end) {
-              setIsCalendarOpen(false);
-          }
-      }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSwitchChange = (name: keyof WorkLog, checked: boolean) => {
-    setFormData(prev => ({ ...prev, [name]: checked }));
-  };
-
-
-  const handleSubmit = async () => {
-     let targetUserId = selectedUserId;
-     if (!targetUserId && users.length === 1) {
-         targetUserId = users[0].uid;
-     }
-
-     if (!firestore || !targetUserId) {
-        toast({title: "Error", description: "Por favor, selecciona un usuario.", variant: "destructive"});
-        return;
-    };
-    setIsLoading(true);
-
-    const userSetting = allUserSettings.find(s => s.userId === targetUserId);
-    if(!userSetting) {
-        toast({title: "Error", description: "No se encontraron los ajustes para este usuario.", variant: "destructive"});
-        setIsLoading(false);
-        return;
-    }
-
-    if (!formData.description) {
-        toast({title: "Error", description: "La descripción es obligatoria.", variant: "destructive"});
-        setIsLoading(false);
-        return;
-    }
-    if (logType === 'particular' && (!formData.date || !formData.startTime || !formData.endTime)) {
-         toast({title: "Error", description: "Fecha, hora de inicio y fin son obligatorias para el tipo 'Particular'.", variant: "destructive"});
-         setIsLoading(false);
-        return;
-    }
-     if (logType === 'tutorial' && (!formData.startDate || !formData.endDate)) {
-         toast({title: "Error", description: "Fecha de inicio y fin son obligatorias para el tipo 'Tutorial'.", variant: "destructive"});
-         setIsLoading(false);
-        return;
-    }
-
-    let logData: Partial<WorkLog> = {
-        ...formData,
-        userId: targetUserId,
-        type: logType,
-        createdAt: serverTimestamp() as any,
-    };
-
-    const { amount, isGross, rateApplied, duration } = calculateEarnings(logData, userSetting);
-    logData.amount = amount;
-    logData.isGrossCalculation = isGross;
-    logData.rateApplied = rateApplied;
-    logData.duration = duration;
-
-    try {
-        const logCollectionRef = collection(firestore, `artifacts/${APP_ID}/users/${targetUserId}/work_logs`);
-        await addDoc(logCollectionRef, logData);
-        toast({title: "Éxito", description: "Registro de trabajo añadido correctamente."});
-        setOpen(false);
-        resetForm();
-        onLogUpdate?.();
-
-    } catch (error: any) {
-        console.error("Error creating work log:", error);
-        toast({title: "Error", description: "No se pudo crear el registro.", variant: "destructive"});
-    } finally {
-        setIsLoading(false);
-    }
-  }
-  
-  const selectedUserName = useMemo(() => {
-    if (!selectedUserId) return null;
-    const user = users.find(u => u.uid === selectedUserId);
-    return user ? `${user.firstName} ${user.lastName}` : null;
-  }, [selectedUserId, users]);
-
-  return (
-      <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if(!isOpen) resetForm(); }}>
-          <DialogTrigger asChild>
-               {children ?? (
-                <Button>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Crear Nuevo Registro
-                </Button>
-               )}
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                  <DialogTitle>Crear Nuevo Registro de Jornada</DialogTitle>
-                  <DialogDescription>
-                      Añade un nuevo registro de trabajo para un usuario.
-                  </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                 {!isSingleUserMode && (
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="user" className="text-right">
-                            Usuario
-                        </Label>
-                        <Select onValueChange={setSelectedUserId} value={selectedUserId}>
-                            <SelectTrigger className="col-span-3">
-                                <SelectValue placeholder="Selecciona un usuario">
-                                  {selectedUserName}
-                                </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                                {users.map(user => (
-                                    <SelectItem key={user.uid} value={user.uid}>
-                                        {user.firstName} {user.lastName}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                 )}
-
-                  <div className="grid grid-cols-4 items-center gap-4">
-                      <Label className="text-right">Tipo</Label>
-                      <RadioGroup value={logType} defaultValue="particular" className="col-span-3 flex gap-4" onValueChange={(value: 'particular' | 'tutorial') => setLogType(value)}>
-                          <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="particular" id="r1" />
-                              <Label htmlFor="r1">Particular</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="tutorial" id="r2" />
-                              <Label htmlFor="r2">Tutorial</Label>
-                          </div>
-                      </RadioGroup>
-                  </div>
-
-                  {logType === 'particular' ? (
-                      <>
-                          <div className="grid grid-cols-4 items-center gap-4">
-                              <Label htmlFor="date" className="text-right">Fecha</Label>
-                               <Popover modal={false} open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn("col-span-3 justify-start text-left font-normal truncate", !formData.date && "text-muted-foreground")}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
-                                            {formData.date ? format(new Date(formData.date), "PPP", { locale: es }) : <span>Elige una fecha</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0">
-                                        <Calendar 
-                                            value={formData.date ? parseDate(formData.date) : undefined} 
-                                            onChange={(d: DateValue) => { handleDateChange('date', d); setIsCalendarOpen(false); }} 
-                                        />
-                                    </PopoverContent>
-                                </Popover>
-                          </div>
-                           <div className="grid grid-cols-4 items-center gap-4">
-                              <Label htmlFor="startTime" className="text-right">Hora Inicio</Label>
-                              <Input id="startTime" name="startTime" type="time" className="col-span-3" value={formData.startTime || ''} onChange={handleInputChange} />
-                          </div>
-                          <div className="grid grid-cols-4 items-center gap-4">
-                              <Label htmlFor="endTime" className="text-right">Hora Fin</Label>
-                              <Input id="endTime" name="endTime" type="time" className="col-span-3" value={formData.endTime || ''} onChange={handleInputChange} />
-                          </div>
-                      </>
-                  ) : (
-                      <div className="grid grid-cols-4 items-start gap-4">
-                          <Label className="text-right pt-2">Rango de Fechas</Label>
-                           <Popover modal={false} open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        variant={"outline"}
-                                        className={cn("col-span-3 justify-start text-left font-normal truncate", (!formData.startDate || !formData.endDate) && "text-muted-foreground")}
-                                    >
-                                        <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
-                                        {formData.startDate && formData.endDate ? (
-                                            <>
-                                                {format(parseISO(formData.startDate), "PPP", { locale: es })} -{" "}
-                                                {format(parseISO(formData.endDate), "PPP", { locale: es })}
-                                            </>
-                                        ) : (
-                                            <span>Selecciona un rango</span>
-                                        )}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                    <RangeCalendar
-                                        value={formData.startDate && formData.endDate ? { start: parseDate(formData.startDate), end: parseDate(formData.endDate) } : null}
-                                        onChange={(range) => handleRangeChange(range)}
-                                    />
-                                </PopoverContent>
-                            </Popover>
-                      </div>
-                  )}
-                  
-                  <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="description" className="text-right">Descripción</Label>
-                      <Input id="description" name="description" className="col-span-3" value={formData.description || ''} onChange={handleInputChange}/>
-                  </div>
-
-                  <div className="grid grid-cols-4 items-start gap-4">
-                      <Label className="text-right pt-2">Opciones</Label>
-                      <div className="col-span-3 space-y-2">
-                        <div className="flex items-center space-x-2">
-                            <Switch id="hasCoordination" name="hasCoordination" checked={formData.hasCoordination} onCheckedChange={(c) => handleSwitchChange('hasCoordination', c)}/>
-                            <Label htmlFor="hasCoordination">Coordinación</Label>
-                        </div>
-                        {logType === 'tutorial' && (
-                            <div className="flex items-center space-x-2">
-                                <Switch id="hasNight" name="hasNight" checked={formData.hasNight} onCheckedChange={(c) => handleSwitchChange('hasNight', c)}/>
-                                <Label htmlFor="hasNight">Nocturnidad</Label>
-                            </div>
-                        )}
-                        {logType === 'tutorial' && formData.hasNight && (
-                            <div className="flex items-center space-x-2 pl-6">
-                                <Switch id="arrivesPrior" name="arrivesPrior" checked={formData.arrivesPrior} onCheckedChange={(c) => handleSwitchChange('arrivesPrior', c)}/>
-                                <Label htmlFor="arrivesPrior">Llegada Día Anterior</Label>
-                            </div>
-                        )}
-                      </div>
-                  </div>
-
-              </div>
-              <DialogFooter>
-                   <DialogClose asChild>
-                        <Button variant="ghost">Cancelar</Button>
-                    </DialogClose>
-                  <Button type="submit" disabled={isLoading} onClick={handleSubmit}>
-                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                    Guardar Registro
-                  </Button>
-              </DialogFooter>
-          </DialogContent>
-      </Dialog>
-  )
-}
 
 export function WorkLogDetailsDialog({ log, isOpen, onOpenChange }: { log: WorkLog | null, isOpen: boolean, onOpenChange: (open: boolean) => void }) {
     if (!log) return null;
@@ -1151,7 +854,7 @@ export default function AdminUsersPage() {
         </div>
         <div className="flex items-center gap-2">
             {users && allUserSettings && users.length > 0 && allUserSettings.length > 0 && (
-                <CreateWorkLogDialog users={users.filter(u => u.email !== ADMIN_EMAIL)} allUserSettings={allUserSettings} onLogUpdate={handleUserUpdate}/>
+                <AdminCreateWorkLogDialog users={users.filter(u => u.email !== ADMIN_EMAIL)} allUserSettings={allUserSettings} onLogUpdate={handleUserUpdate}/>
             )}
         </div>
       </div>
@@ -1189,7 +892,7 @@ export default function AdminUsersPage() {
                 </TableHeader>
                 <TableBody>
                     {renderTableBody(
-                        isLoading,
+                        !!isLoading,
                         users?.filter(u => u.email !== ADMIN_EMAIL),
                          (user: UserProfile) => (
                           <React.Fragment key={user.uid}>
@@ -1251,7 +954,7 @@ export default function AdminUsersPage() {
                 <TableBody>
                    {renderTableBody(
                        isLoadingRequests,
-                       pendingRequests,
+                       pendingRequests || null,
                        (req) => (
                            <TableRow key={req.id}>
                                <TableCell>{req.firstName} {req.lastName}</TableCell>

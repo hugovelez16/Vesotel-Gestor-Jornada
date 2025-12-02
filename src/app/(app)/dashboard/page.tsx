@@ -11,7 +11,7 @@ import type { UserProfile, UserSettings, WorkLog } from "@/lib/types";
 import { collection, doc } from "firebase/firestore";
 import { format, isSameMonth, parseISO, differenceInCalendarDays } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CreateWorkLogDialog } from "@/app/admin/users/page";
+import { UserCreateWorkLogDialog } from "@/components/work-log/user-dialog";
 import { calculateMonthlyStats } from "@/lib/calculations";
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -111,16 +111,16 @@ function UserDashboard() {
           <p className="text-muted-foreground">Resumen de tu actividad laboral del mes actual.</p>
         </div>
          {user && (
-             <CreateWorkLogDialog
-                users={profile ? [profile] : [{ uid: user.uid, email: user.email || '', firstName: 'Usuario', lastName: '', role: 'user', createdAt: null }]}
-                allUserSettings={settings ? [settings] : [{ userId: user.uid, firstName: 'Usuario', lastName: '', hourlyRate: 0, dailyRate: 0, coordinationRate: 10, nightRate: 30, isGross: false }]}
+             <UserCreateWorkLogDialog
+                user={{ uid: user.uid }}
+                userSettings={settings}
                 onLogUpdate={handleLogUpdate}
             >
                 <Button disabled={isLoadingProfile || isLoadingSettings}>
                     {isLoadingProfile || isLoadingSettings ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
                     Añadir Registro
                 </Button>
-            </CreateWorkLogDialog>
+            </UserCreateWorkLogDialog>
          )}
       </div>
       
