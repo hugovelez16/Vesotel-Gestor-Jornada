@@ -33,7 +33,7 @@ import {
 import { Button } from "./ui/button";
 import { signOut } from "firebase/auth";
 import { ADMIN_EMAIL, APP_ID } from "@/lib/config";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useState, useEffect } from "react";
 import { doc } from "firebase/firestore";
 import type { UserProfile } from "@/lib/types";
@@ -152,6 +152,10 @@ export default function MainNav() {
           </Button>
         </SheetTrigger>
         <SheetContent side="left">
+          <SheetTitle className="sr-only">Menú de navegación</SheetTitle>
+          <SheetDescription className="sr-only">
+            Menú de navegación principal para dispositivos móviles
+          </SheetDescription>
           <nav className="grid gap-6 text-lg font-medium">
             <Link
               href={homeHref}
