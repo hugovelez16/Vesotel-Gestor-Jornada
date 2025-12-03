@@ -10,7 +10,9 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 export const metadata: Metadata = {
   title: "Vesotel Jornada",
   description: "Gestión de Jornadas Laborales",
-  icons: "/logo.webp",
+  icons: {
+    icon: "/logo.webp",
+  },
 };
 
 export default function RootLayout({

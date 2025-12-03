@@ -80,12 +80,12 @@ export default function CalendarPage() {
     };
 
     return (
-        <div className="space-y-8 h-full flex flex-col">
-            <div>
+        <div className="flex flex-col h-[calc(100vh-8rem)] gap-4">
+            <div className="flex-none">
                 <h1 className="text-3xl font-bold tracking-tight">Calendario</h1>
                 <p className="text-muted-foreground">Visualiza tus jornadas laborales.</p>
             </div>
-            <div className="flex-1 h-[calc(100vh-12rem)]">
+            <div className="flex-1 min-h-0">
                  <EventCalendar
                     events={events}
                     initialView="month"
