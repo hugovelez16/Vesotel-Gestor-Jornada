@@ -15,7 +15,8 @@ import { UserCreateWorkLogDialog } from "@/components/work-log/user-dialog";
 import { calculateMonthlyStats } from "@/lib/calculations";
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { WorkLogDetailsDialog, EditWorkLogDialog, DeleteWorkLogAlert } from "@/app/admin/users/page";
+import { WorkLogDetailsDialog } from "@/components/work-log/work-log-details-dialog";
+import { EditWorkLogDialog, DeleteWorkLogAlert } from "@/app/admin/users/page";
 
 const StatCard = ({ title, value, icon: Icon, colorClass = "text-primary", unit }: { title: string, value: number, icon: React.ElementType, colorClass?: string, unit?: string }) => (
     <Card>

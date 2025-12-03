@@ -21,7 +21,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { CreateWorkLogDialog, EditWorkLogDialog } from '@/app/admin/users/page';
+import { AdminCreateWorkLogDialog as CreateWorkLogDialog } from '@/components/work-log/admin-dialog';
+import { EditWorkLogDialog } from '@/app/admin/users/page';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 

@@ -22,7 +22,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { useParams } from "next/navigation";
-import { WorkLogDetailsDialog, EditWorkLogDialog, DeleteWorkLogAlert } from "@/app/admin/users/page";
+import { WorkLogDetailsDialog } from "@/components/work-log/work-log-details-dialog";
+import { EditWorkLogDialog, DeleteWorkLogAlert } from "@/app/admin/users/page";
 
 
 function UserWorkLogs({ userId, userSettings }: { userId: string, userSettings: UserSettings | null }) {
