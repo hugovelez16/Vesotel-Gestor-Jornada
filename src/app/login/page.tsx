@@ -17,6 +17,7 @@ import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { BorderBeam } from "@/components/ui/border-beam";
 
 
 const formSchema = z.object({
@@ -170,7 +171,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md">
+      <Card className="relative w-full max-w-md overflow-hidden">
         <CardHeader className="text-center">
           <VesotelLogo className="mx-auto mb-4" />
           {loginState === "initial" && <CardTitle>Bienvenido a Vesotel Jornada</CardTitle>}
@@ -249,7 +250,13 @@ export default function LoginPage() {
                 <Button variant="ghost" className="w-full" type="button" onClick={logoutAndShowLogin}>Usar otra cuenta</Button>
             </CardFooter>
         )}
-
+        
+        <BorderBeam
+            duration={4}
+            size={300}
+            reverse
+            className="from-transparent via-green-500 to-transparent"
+        />
       </Card>
     </div>
   );
