@@ -85,7 +85,7 @@ export default function CalendarPage() {
                 <h1 className="text-3xl font-bold tracking-tight">Calendario</h1>
                 <p className="text-muted-foreground">Visualiza tus jornadas laborales.</p>
             </div>
-            <div className="flex-1 min-h-[600px]">
+            <div className="flex-1 h-[calc(100vh-12rem)]">
                  <EventCalendar
                     events={events}
                     initialView="month"

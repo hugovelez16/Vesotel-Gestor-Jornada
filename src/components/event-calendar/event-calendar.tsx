@@ -270,7 +270,7 @@ export function EventCalendar({
 
   return (
     <div
-      className="flex flex-col rounded-lg border has-data-[slot=month-view]:flex-1"
+      className="flex flex-col rounded-lg border has-data-[slot=month-view]:flex-1 h-full"
       style={
         {
           "--event-gap": `${EventGap}px`,
