@@ -243,6 +243,11 @@ function UserDetailContent({ userId, onUserUpdate }: { userId: string, onUserUpd
 
         const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
         await Promise.all(deletePromises);
+        
+        // Optionally delete the user profile too? 
+        // For now, we just remove from allowed_users as requested.
+        // But if we want to be clean, we might want to delete the user doc too.
+        // However, the requirement was just "revoke access".
 
         toast({ title: "Acceso Revocado", description: `Se ha revocado el acceso para ${profile.email}.` });
     } catch (error: any) {
@@ -693,13 +698,14 @@ export default function AdminUsersPage() {
         return;
       }
       const settingsPromises = users.map(user => {
-        const settingsRef = doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`);
+        // user.id is now the email (or whatever the doc ID is)
+        const settingsRef = doc(firestore, `artifacts/${APP_ID}/users/${user.id}/settings/config`);
         return getDoc(settingsRef).then(docSnap => {
           if (docSnap.exists()) {
-            return { ...docSnap.data(), userId: user.uid } as UserSettings;
+            return { ...docSnap.data(), userId: user.id } as UserSettings;
           }
           const defaultSettings: UserSettings = {
-            userId: user.uid,
+            userId: user.id,
             firstName: user.firstName,
             lastName: user.lastName,
             hourlyRate: 0,
@@ -729,13 +735,37 @@ export default function AdminUsersPage() {
         
         if (newStatus === 'approved') {
             const allowedUserRef = collection(firestore, `artifacts/${APP_ID}/public/data/allowed_users`);
-            const q = query(allowedUserRef, where("email", "==", request.email));
-            const existing = await getDocs(q);
-            if (existing.empty) {
-                await addDoc(allowedUserRef, { email: request.email });
-            }
+            // Use email as ID for allowed_users
+            await setDoc(doc(allowedUserRef, request.email), { email: request.email });
+            
+            // Create User Profile with Email as ID
+            const userRef = doc(firestore, `artifacts/${APP_ID}/public/data/users`, request.email);
+            const userData: UserProfile = {
+                uid: request.email, // Using email as uid for consistency in this model
+                email: request.email,
+                firstName: request.firstName,
+                lastName: request.lastName,
+                type: 'user_registry',
+                lastLogin: serverTimestamp() as any
+            };
+            await setDoc(userRef, userData, { merge: true });
+
+            // Initialize User Settings
+            const settingsRef = doc(firestore, `artifacts/${APP_ID}/users/${request.email}/settings/config`);
+            const defaultSettings: UserSettings = {
+                userId: request.email,
+                firstName: request.firstName,
+                lastName: request.lastName,
+                hourlyRate: 0,
+                dailyRate: 0,
+                coordinationRate: 10,
+                nightRate: 30,
+                isGross: false,
+            };
+            await setDoc(settingsRef, defaultSettings, { merge: true });
+
             await updateDoc(requestRef, { status: 'approved' });
-            toast({ title: "Acceso Aprobado", description: `${request.email} ahora tiene acceso.`});
+            toast({ title: "Acceso Aprobado", description: `${request.email} ahora tiene acceso y su perfil ha sido creado.`});
         } else {
             await updateDoc(requestRef, { status: 'rejected' });
             toast({ title: "Acceso Rechazado", description: `La solicitud de ${request.email} ha sido rechazada.`});

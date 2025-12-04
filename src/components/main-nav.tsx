@@ -68,7 +68,7 @@ export default function MainNav() {
   const [viewAsAdmin, setViewAsAdmin] = useState(isAdmin ? adminViewAsAdmin : false);
 
   const profileRef = useMemoFirebase(
-    () => (user && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.uid) : null,
+    () => (user && firestore && user.email) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.email) : null,
     [firestore, user]
   );
   const { data: profile } = useDoc<UserProfile>(profileRef);

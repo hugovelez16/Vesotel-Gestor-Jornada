@@ -126,7 +126,7 @@ function UserWorkLogs({ userId, userSettings }: { userId: string, userSettings: 
 
 export default function UserRecordsPage() {
   const params = useParams();
-  const userId = params.userId as string;
+  const userId = decodeURIComponent(params.userId as string);
   const firestore = useFirestore();
 
   const userProfileRef = useMemoFirebase(

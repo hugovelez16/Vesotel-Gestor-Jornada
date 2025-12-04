@@ -46,15 +46,15 @@ function UserDashboard() {
     const [selectedLog, setSelectedLog] = useState<WorkLog | null>(null);
 
     const workLogsRef = useMemoFirebase(
-        () => user ? collection(firestore, `artifacts/${APP_ID}/users/${user.uid}/work_logs`) : null,
+        () => (user && user.email) ? collection(firestore, `artifacts/${APP_ID}/users/${user.email}/work_logs`) : null,
         [user, firestore, refreshKey]
     );
      const userProfileRef = useMemoFirebase(
-        () => (user && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.uid) : null,
+        () => (user && firestore && user.email) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.email) : null,
         [firestore, user]
     );
     const userSettingsRef = useMemoFirebase(
-        () => (user && firestore) ? doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`) : null,
+        () => (user && firestore && user.email) ? doc(firestore, `artifacts/${APP_ID}/users/${user.email}/settings/config`) : null,
         [firestore, user]
     );
     
@@ -113,7 +113,7 @@ function UserDashboard() {
         </div>
          {user && (
              <UserCreateWorkLogDialog
-                user={{ uid: user.uid }}
+                user={{ uid: user.email || user.uid }} // Pass email as uid if available, for consistency
                 userSettings={settings}
                 onLogUpdate={handleLogUpdate}
             >
@@ -173,8 +173,8 @@ function UserDashboard() {
                                     <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
                                         {user && settings && (
                                             <>
-                                            <EditWorkLogDialog log={log} userId={user.uid} userSettings={settings} onLogUpdate={handleLogUpdate} />
-                                            <DeleteWorkLogAlert log={log} userId={user.uid} onLogUpdate={handleLogUpdate} />
+                                            <EditWorkLogDialog log={log} userId={user.email || user.uid} userSettings={settings} onLogUpdate={handleLogUpdate} />
+                                            <DeleteWorkLogAlert log={log} userId={user.email || user.uid} onLogUpdate={handleLogUpdate} />
                                             </>
                                         )}
                                     </div>

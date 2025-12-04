@@ -7,9 +7,9 @@ import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { VesotelLogo } from "@/components/icons";
-import { signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
+import { signInWithPopup, GoogleAuthProvider, signOut, signInWithRedirect, getRedirectResult, User } from "firebase/auth";
 import { Loader2 } from "lucide-react";
-import { collection, query, where, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import { APP_ID, ADMIN_EMAIL } from "@/lib/config";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -65,6 +65,67 @@ export default function LoginPage() {
   }, [user, isUserLoading, router]);
 
 
+  const handleLoginSuccess = async (loggedInUser: User) => {
+    // Después del login exitoso, el useEffect se encargará de la redirección.
+    // Aquí solo comprobamos si necesita solicitar acceso.
+    if (!firestore || !loggedInUser.email) {
+        setLoginState("unauthorized"); return;
+    }
+    if (loggedInUser.email === ADMIN_EMAIL) {
+        // Redirección manejada por el useEffect
+        return;
+    }
+    // Check allowed_users using email as ID (new structure) or query (legacy structure support)
+    // We'll try direct lookup first as it's the new standard
+    const allowedUserRef = doc(firestore, `artifacts/${APP_ID}/public/data/allowed_users`, loggedInUser.email);
+    const allowedUserSnap = await getDoc(allowedUserRef);
+    
+    if (allowedUserSnap.exists()) {
+            // Redirección manejada por el useEffect
+        return;
+    }
+
+    // Fallback: Check via query in case it's an old record (optional, but good for safety during migration)
+    const allowedUsersQuery = query(collection(firestore, `artifacts/${APP_ID}/public/data/allowed_users`), where("email", "==", loggedInUser.email));
+    const allowedUsersSnapshot = await getDocs(allowedUsersQuery);
+    if (!allowedUsersSnapshot.empty) {
+            // Redirección manejada por el useEffect
+        return;
+    }
+
+    // No autorizado, comprobar si ya existe una solicitud
+    const accessRequestQuery = query(collection(firestore, `artifacts/${APP_ID}/public/data/access_requests`), where("email", "==", loggedInUser.email), where("status", "==", "pending"));
+    const accessRequestSnapshot = await getDocs(accessRequestQuery);
+    if(!accessRequestSnapshot.empty){
+        setLoginState("request_sent");
+    } else {
+            setLoginState("unauthorized");
+            form.reset({
+            firstName: loggedInUser.displayName?.split(' ')[0] || "",
+            lastName: loggedInUser.displayName?.split(' ').slice(1).join(' ') || "",
+            });
+    }
+  };
+
+  useEffect(() => {
+    if (auth) {
+        getRedirectResult(auth).then(async (result) => {
+            if (result) {
+                setLoginState("loading");
+                await handleLoginSuccess(result.user);
+            }
+        }).catch((error) => {
+            console.error("Error with getRedirectResult:", error);
+            toast({
+                title: "Error de inicio de sesión",
+                description: "No se pudo completar el inicio de sesión. Inténtalo de nuevo.",
+                variant: "destructive"
+            });
+            setLoginState("initial");
+        });
+    }
+  }, [auth, firestore, toast, form]);
+
   const signInWithGoogle = async () => {
     if(auth) {
         setLoginState("loading");
@@ -72,42 +133,32 @@ export default function LoginPage() {
         provider.setCustomParameters({ prompt: 'select_account' });
         try {
             const result = await signInWithPopup(auth, provider);
-            const loggedInUser = result.user;
-
-            // Después del login exitoso, el useEffect se encargará de la redirección.
-            // Aquí solo comprobamos si necesita solicitar acceso.
-            if (!firestore || !loggedInUser.email) {
-                setLoginState("unauthorized"); return;
-            }
-             if (loggedInUser.email === ADMIN_EMAIL) {
-                // Redirección manejada por el useEffect
-                return;
-            }
-            const allowedUsersQuery = query(collection(firestore, `artifacts/${APP_ID}/public/data/allowed_users`), where("email", "==", loggedInUser.email));
-            const allowedUsersSnapshot = await getDocs(allowedUsersQuery);
-            if (!allowedUsersSnapshot.empty) {
-                 // Redirección manejada por el useEffect
-                return;
-            }
-
-            // No autorizado, comprobar si ya existe una solicitud
-            const accessRequestQuery = query(collection(firestore, `artifacts/${APP_ID}/public/data/access_requests`), where("email", "==", loggedInUser.email), where("status", "==", "pending"));
-            const accessRequestSnapshot = await getDocs(accessRequestQuery);
-            if(!accessRequestSnapshot.empty){
-                setLoginState("request_sent");
-            } else {
-                 setLoginState("unauthorized");
-                 form.reset({
-                    firstName: loggedInUser.displayName?.split(' ')[0] || "",
-                    lastName: loggedInUser.displayName?.split(' ').slice(1).join(' ') || "",
-                 });
-            }
-
+            await handleLoginSuccess(result.user);
         } catch (error: any) {
             console.error("Error with signInWithPopup:", error);
+            // Si el popup falla (ej. bloqueado), sugerimos redirect o mostramos error
             toast({
                 title: "Error de inicio de sesión",
-                description: "No se pudo iniciar sesión con Google. Por favor, inténtalo de nuevo.",
+                description: "No se pudo iniciar sesión con Google. Intenta con la opción alternativa.",
+                variant: "destructive"
+            });
+            setLoginState("initial");
+        }
+    }
+  };
+
+  const signInWithGoogleRedirect = async () => {
+    if(auth) {
+        setLoginState("loading");
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        try {
+            await signInWithRedirect(auth, provider);
+        } catch (error: any) {
+            console.error("Error with signInWithRedirect:", error);
+            toast({
+                title: "Error al redirigir",
+                description: "No se pudo iniciar la redirección.",
                 variant: "destructive"
             });
             setLoginState("initial");
@@ -197,6 +248,11 @@ export default function LoginPage() {
             >
               <GoogleIcon /> Iniciar sesión con Google
             </Button>
+            <div className="mt-4 text-center">
+                <Button variant="link" size="sm" onClick={signInWithGoogleRedirect} className="text-muted-foreground">
+                    ¿Problemas? Prueba este método alternativo
+                </Button>
+            </div>
           </CardContent>
         )}
 
