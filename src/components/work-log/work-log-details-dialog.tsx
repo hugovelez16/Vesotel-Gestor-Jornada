@@ -108,9 +108,10 @@ export function WorkLogDetailsDialog({ log, isOpen, onOpenChange, userSettings }
                             <span>{totalGross.toFixed(2)}€</span>
                         </div>
                          <div className="flex justify-between font-bold text-base text-green-600">
-                            <span>Total Neto ({totalGross.toFixed(2)} x {IRPF_FACTOR})</span>
+                            <span>Total Neto ({totalGross.toFixed(2)}€ - {((1 - IRPF_FACTOR) * 100).toFixed(2)}%)</span>
                             <span>{totalNet.toFixed(2)}€</span>
                         </div>
+                        <div className="text-xs text-right text-muted-foreground mt-1">(retenciones nómina)</div>
                     </div>
 
                     <div className="text-xs text-muted-foreground mt-2">
