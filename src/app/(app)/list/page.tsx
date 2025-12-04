@@ -174,7 +174,7 @@ export default function ListPage() {
           </TableBody>
         </Table>
       </div>
-       <WorkLogDetailsDialog log={selectedLog} isOpen={!!selectedLog} onOpenChange={(isOpen) => !isOpen && setSelectedLog(null)} />
+       <WorkLogDetailsDialog log={selectedLog} isOpen={!!selectedLog} onOpenChange={(isOpen) => !isOpen && setSelectedLog(null)} userSettings={settings} />
     </div>
   );
 }

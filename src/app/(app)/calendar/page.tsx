@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import type { WorkLog } from '@/lib/types';
-import { collection } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
+import type { WorkLog, UserSettings } from '@/lib/types';
+import { collection, doc } from 'firebase/firestore';
 import { APP_ID } from '@/lib/config';
 import { EventCalendar, type CalendarEvent } from "@/components/event-calendar";
 import { parseISO, setHours, setMinutes } from 'date-fns';
@@ -20,7 +20,13 @@ export default function CalendarPage() {
         () => (user && user.email) ? collection(firestore, `artifacts/${APP_ID}/users/${user.email}/work_logs`) : null,
         [user, firestore]
     );
+    const userSettingsRef = useMemoFirebase(
+        () => (user && firestore && user.email) ? doc(firestore, `artifacts/${APP_ID}/users/${user.email}/settings/config`) : null,
+        [firestore, user]
+    );
+
     const { data: workLogs, isLoading } = useCollection<WorkLog>(workLogsRef);
+    const { data: settings } = useDoc<UserSettings>(userSettingsRef);
 
     const events = useMemo<CalendarEvent[]>(() => {
         if (!workLogs) return [];
@@ -97,6 +103,7 @@ export default function CalendarPage() {
                 log={selectedLog} 
                 isOpen={isDialogOpen} 
                 onOpenChange={setIsDialogOpen} 
+                userSettings={settings}
             />
         </div>
     );

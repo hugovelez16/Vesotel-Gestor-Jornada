@@ -118,7 +118,7 @@ function UserWorkLogs({ userId, userSettings }: { userId: string, userSettings: 
                 </Table>
             </div>
         </CardContent>
-        <WorkLogDetailsDialog log={selectedLog} isOpen={!!selectedLog} onOpenChange={(isOpen) => !isOpen && setSelectedLog(null)} />
+        <WorkLogDetailsDialog log={selectedLog} isOpen={!!selectedLog} onOpenChange={(isOpen) => !isOpen && setSelectedLog(null)} userSettings={userSettings} />
     </Card>
   );
 }
