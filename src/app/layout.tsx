@@ -8,8 +8,8 @@ import { FirebaseClientProvider } from "@/firebase";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "Vesotel Jornada",
-  description: "Gestión de Jornadas Laborales",
+  title: "Ski Vesotel",
+  description: "Gestion Jornadas Ski",
   icons: {
     icon: "/logo.webp",
   },

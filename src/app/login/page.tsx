@@ -174,7 +174,7 @@ export default function LoginPage() {
       <Card className="relative w-full max-w-md overflow-hidden">
         <CardHeader className="text-center">
           <VesotelLogo className="mx-auto mb-4" />
-          {loginState === "initial" && <CardTitle>Bienvenido a Vesotel Jornada</CardTitle>}
+          {loginState === "initial" && <CardTitle>Bienvenido a Ski Vesotel</CardTitle>}
           {loginState === "unauthorized" && (
             <>
               <CardTitle>Acceso Restringido</CardTitle>
