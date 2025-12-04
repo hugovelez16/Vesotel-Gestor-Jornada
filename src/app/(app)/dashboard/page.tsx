@@ -81,8 +81,20 @@ function UserDashboard() {
                 isGross: false,
             };
         }
+        if (user) {
+            return {
+                userId: user.email || user.uid,
+                firstName: user.displayName || '',
+                lastName: '',
+                hourlyRate: 0,
+                dailyRate: 0,
+                coordinationRate: 10,
+                nightRate: 30,
+                isGross: false,
+            };
+        }
         return null;
-    }, [settingsData, profile]);
+    }, [settingsData, profile, user]);
 
     useEffect(() => {
         if (!workLogs) return;

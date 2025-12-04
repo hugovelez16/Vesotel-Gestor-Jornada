@@ -25,12 +25,12 @@ export default function ProfilePage() {
     const [isLoading, setIsLoading] = useState(false);
     
     const settingsRef = useMemoFirebase(
-      () => user && firestore ? doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`) : null,
+      () => (user && firestore && user.email) ? doc(firestore, `artifacts/${APP_ID}/users/${user.email}/settings/config`) : null,
       [firestore, user]
     );
 
     const profileRef = useMemoFirebase(
-      () => user && firestore ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.uid) : null,
+      () => (user && firestore && user.email) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.email) : null,
       [firestore, user]
     );
 

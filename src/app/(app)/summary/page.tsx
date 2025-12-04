@@ -95,7 +95,7 @@ export default function SummaryPage() {
     const firestore = useFirestore();
 
     const workLogsRef = useMemoFirebase(
-        () => user ? collection(firestore, `artifacts/${APP_ID}/users/${user.uid}/work_logs`) : null,
+        () => (user && user.email) ? collection(firestore, `artifacts/${APP_ID}/users/${user.email}/work_logs`) : null,
         [user, firestore]
     );
     const { data: workLogs, isLoading } = useCollection<WorkLog>(workLogsRef);

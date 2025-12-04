@@ -31,16 +31,16 @@ export default function ListPage() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const workLogsRef = useMemoFirebase(
-    () => user ? collection(firestore, `artifacts/${APP_ID}/users/${user.uid}/work_logs`) : null,
+    () => (user && user.email) ? collection(firestore, `artifacts/${APP_ID}/users/${user.email}/work_logs`) : null,
     [user, firestore, refreshKey]
   );
   
   const userProfileRef = useMemoFirebase(
-    () => (user && firestore) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.uid) : null,
+    () => (user && firestore && user.email) ? doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.email) : null,
     [firestore, user]
   );
   const userSettingsRef = useMemoFirebase(
-    () => (user && firestore) ? doc(firestore, `artifacts/${APP_ID}/users/${user.uid}/settings/config`) : null,
+    () => (user && firestore && user.email) ? doc(firestore, `artifacts/${APP_ID}/users/${user.email}/settings/config`) : null,
     [firestore, user]
   );
   
@@ -67,8 +67,20 @@ export default function ListPage() {
         isGross: false,
       };
     }
+    if (user) {
+        return {
+            userId: user.email || user.uid,
+            firstName: user.displayName || '',
+            lastName: '',
+            hourlyRate: 0,
+            dailyRate: 0,
+            coordinationRate: 10,
+            nightRate: 30,
+            isGross: false,
+        };
+    }
     return null;
-  }, [settingsData, profile]);
+  }, [settingsData, profile, user]);
 
   const sortedWorkLogs = useMemo(() => {
     if (!workLogs) return [];
@@ -91,9 +103,9 @@ export default function ListPage() {
           <h1 className="text-3xl font-bold tracking-tight">Lista de Registros</h1>
           <p className="text-muted-foreground">Todos tus registros de trabajo en un solo lugar.</p>
         </div>
-        {profile && settings && (
+        {user && settings && (
           <UserCreateWorkLogDialog
-            user={profile}
+            user={{ uid: user.email || user.uid }}
             userSettings={settings}
             onLogUpdate={handleLogUpdate}
           >
@@ -144,8 +156,8 @@ export default function ListPage() {
                       <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
                            {user && settings && (
                               <>
-                              <EditWorkLogDialog log={log} userId={user.uid} userSettings={settings} onLogUpdate={handleLogUpdate} />
-                              <DeleteWorkLogAlert log={log} userId={user.uid} onLogUpdate={handleLogUpdate} />
+                              <EditWorkLogDialog log={log} userId={user.email || user.uid} userSettings={settings} onLogUpdate={handleLogUpdate} />
+                              <DeleteWorkLogAlert log={log} userId={user.email || user.uid} onLogUpdate={handleLogUpdate} />
                               </>
                           )}
                       </div>

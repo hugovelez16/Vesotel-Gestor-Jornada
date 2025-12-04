@@ -17,7 +17,7 @@ export default function CalendarPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 
     const workLogsRef = useMemoFirebase(
-        () => user ? collection(firestore, `artifacts/${APP_ID}/users/${user.uid}/work_logs`) : null,
+        () => (user && user.email) ? collection(firestore, `artifacts/${APP_ID}/users/${user.email}/work_logs`) : null,
         [user, firestore]
     );
     const { data: workLogs, isLoading } = useCollection<WorkLog>(workLogsRef);
