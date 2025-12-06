@@ -670,6 +670,65 @@ export function DeleteWorkLogAlert({ log, userId, onLogUpdate }: { log: WorkLog,
     );
 }
 
+export function DeleteUserAlert({ user, onUserUpdate }: { user: UserProfile, onUserUpdate: () => void }) {
+    const [isLoading, setIsLoading] = useState(false);
+    const firestore = useFirestore();
+    const { toast } = useToast();
+
+    const handleDelete = async (e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent row click expansion
+        if (!firestore || !user.uid) return;
+        setIsLoading(true);
+        try {
+            // Delete user profile
+            // NOTE: This does NOT delete the subcollection 'work_logs'. Firestore requires recursive delete or cloud functions for that.
+            // For now we just delete the profile so it disappears from the list.
+            const userRef = doc(firestore, `artifacts/${APP_ID}/public/data/users`, user.uid);
+            await deleteDoc(userRef);
+            
+            // Also try to delete from allowed_users if it exists (using email)
+            if (user.email) {
+                const allowedRef = doc(firestore, `artifacts/${APP_ID}/public/data/allowed_users`, user.email);
+                await deleteDoc(allowedRef);
+            }
+
+            toast({ title: "Usuario Eliminado", description: "El usuario ha sido eliminado de la lista." });
+            onUserUpdate();
+        } catch (error: any) {
+            console.error("Error deleting user:", error);
+            toast({ title: "Error", description: "No se pudo eliminar el usuario.", variant: "destructive" });
+        } finally {
+            setIsLoading(false);
+        }
+    }
+    
+    return (
+        <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-destructive" onClick={(e) => e.stopPropagation()}>
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>¿Eliminar Usuario?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Esta acción eliminará el perfil del usuario "{user.firstName} {user.lastName}" ({user.email}). 
+                        Sus registros de trabajo NO se borrarán automáticamente de la base de datos, pero el usuario ya no tendrá acceso ni aparecerá en esta lista.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} disabled={isLoading} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                        Eliminar Usuario
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
+}
+
 export default function AdminUsersPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -827,7 +886,7 @@ export default function AdminUsersPage() {
         </div>
         <div className="flex items-center gap-2">
             {users && allUserSettings && users.length > 0 && allUserSettings.length > 0 && (
-                <AdminCreateWorkLogDialog users={users.filter(u => u.email !== ADMIN_EMAIL)} allUserSettings={allUserSettings} onLogUpdate={handleUserUpdate}/>
+                <AdminCreateWorkLogDialog users={users.filter(u => u.email !== ADMIN_EMAIL && u.email)} allUserSettings={allUserSettings} onLogUpdate={handleUserUpdate}/>
             )}
         </div>
       </div>
@@ -866,7 +925,7 @@ export default function AdminUsersPage() {
                 <TableBody>
                     {renderTableBody(
                         !!isLoading,
-                        users?.filter(u => u.email !== ADMIN_EMAIL) ?? null,
+                        users?.filter(u => u.email !== ADMIN_EMAIL && u.email) ?? null,
                          (user: UserProfile) => (
                           <React.Fragment key={user.uid}>
                             <TableRow onClick={() => handleRowClick(user.uid)} className="cursor-pointer">
@@ -885,6 +944,9 @@ export default function AdminUsersPage() {
                                 </TableCell>
                                 <TableCell>
                                   {expandedUserId === user.uid ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                </TableCell>
+                                <TableCell>
+                                   <DeleteUserAlert user={user} onUserUpdate={handleUserUpdate} />
                                 </TableCell>
                             </TableRow>
                             {expandedUserId === user.uid && (

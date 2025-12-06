@@ -123,9 +123,9 @@ function UserDashboard() {
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">Resumen de tu actividad laboral del mes actual.</p>
         </div>
-         {user && (
+         {user && user.email && (
              <UserCreateWorkLogDialog
-                user={{ uid: user.email || user.uid }} // Pass email as uid if available, for consistency
+                user={{ uid: user.email }} // Strictly use email. If user.email is null, we shouldn't be here (or expecting issues).
                 userSettings={settings}
                 onLogUpdate={handleLogUpdate}
             >
