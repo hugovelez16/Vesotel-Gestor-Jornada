@@ -108,7 +108,29 @@ function UserDashboard() {
           const dateA = a.type === 'tutorial' ? a.startDate : a.date;
           const dateB = b.type === 'tutorial' ? b.startDate : b.date;
           if (!dateA || !dateB) return 0;
-          return parseISO(dateB).getTime() - parseISO(dateA).getTime();
+          
+          const timeA = parseISO(dateA).getTime();
+          const timeB = parseISO(dateB).getTime();
+          
+          if (timeA !== timeB) {
+              return timeB - timeA;
+          }
+
+          // If dates are equal, sort by start time (descending)
+          // For tutorials or logs without time, treat as empty string (will come last in desc?)
+          // actually empty string comes before numbers in ascii, but let's see.
+          // "12:00" > "10:00" -> localCompare returns 1 -> B > A -> sort B before A logic?
+          // sort(a,b): strict return < 0 if a < b (a comes first)
+          // we want 12:00 (B) before 10:00 (A).
+          // so we need positive if a < b (meaning a "10:00" should be after b "12:00")
+          // "10:00".localeCompare("12:00") is -1.
+          // We want desc. So b.localeCompare(a).
+          // "12:00".localeCompare("10:00") is 1.
+          
+          const startTimeA = a.startTime || '00:00';
+          const startTimeB = b.startTime || '00:00';
+          
+          return startTimeB.localeCompare(startTimeA);
         });
     }, [workLogs]);
 

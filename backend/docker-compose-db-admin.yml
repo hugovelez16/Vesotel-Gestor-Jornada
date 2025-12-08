@@ -1,0 +1,10 @@
+version: "3"
+services:
+  db-admin:
+    image: adminer
+    restart: always
+    ports:
+      - "8090:8080" # Accederás en http://IP_NAS:8090
+    environment:
+      # Opcional: Para que sea más cómodo el login
+      ADMINER_DEFAULT_SERVER: 172.20.10.12
