@@ -88,7 +88,18 @@ export default function ListPage() {
       const dateA = a.type === 'tutorial' ? a.startDate : a.date;
       const dateB = b.type === 'tutorial' ? b.startDate : b.date;
       if (!dateA || !dateB) return 0;
-      return parseISO(dateB).getTime() - parseISO(dateA).getTime();
+      
+      const timeA = parseISO(dateA).getTime();
+      const timeB = parseISO(dateB).getTime();
+
+      if (timeA !== timeB) {
+          return timeB - timeA;
+      }
+      
+      const startTimeA = a.startTime || '00:00';
+      const startTimeB = b.startTime || '00:00';
+      
+      return startTimeB.localeCompare(startTimeA);
     });
   }, [workLogs]);
 
