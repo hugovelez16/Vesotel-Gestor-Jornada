@@ -39,6 +39,8 @@ const StatDisplay = ({ icon: Icon, label, value, unit, colorClass = 'text-primar
 
 const generateWhatsAppMessage = (logs: WorkLog[], monthName: string): string => {
     const dailySummaries: { [day: number]: string } = {};
+    const particularHoursByDay: { [day: number]: number } = {};
+    
     let totalHours = 0;
     let totalTutorials = 0;
     let totalNights = 0;
@@ -49,7 +51,10 @@ const generateWhatsAppMessage = (logs: WorkLog[], monthName: string): string => 
             const day = getDate(parseISO(log.date));
             const hours = log.duration || 0;
             totalHours += hours;
-            dailySummaries[day] = `Dia ${day} - ${hours}h`;
+            
+            // Accumulate hours for this day
+            particularHoursByDay[day] = (particularHoursByDay[day] || 0) + hours;
+            
         } else if (log.type === 'tutorial' && log.startDate && log.endDate) {
             const start = parseISO(log.startDate);
             const end = parseISO(log.endDate);
@@ -71,6 +76,26 @@ const generateWhatsAppMessage = (logs: WorkLog[], monthName: string): string => 
             if(log.hasCoordination) {
                  totalCoordinations += (differenceInCalendarDays(end, start) + 1);
             }
+        }
+    });
+
+    // Merge particular hours into daily summaries
+    Object.keys(particularHoursByDay).forEach(key => {
+        const day = Number(key);
+        // If there's already a tutorial on this day, we might have a conflict or need to append
+        // But usually particular and tutorial don't overlap on same day logic-wise for this display, 
+        // or if they do, we can show both.
+        // For now, let's assume we just want the line for particular hours.
+        // If a day has both, this logic will prefer Tutorial string if receiving mixed types, 
+        // but here we are building the strings.
+        
+        const hours = particularHoursByDay[day];
+        const particularString = `Dia ${day} - ${hours}h`;
+        
+        if (dailySummaries[day]) {
+            dailySummaries[day] += ` / ${hours}h (Particular)`;
+        } else {
+            dailySummaries[day] = particularString;
         }
     });
 
