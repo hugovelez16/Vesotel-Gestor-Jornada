@@ -46,16 +46,27 @@ const generateWhatsAppMessage = (logs: WorkLog[], monthName: string): string => 
     let totalNights = 0;
     let totalCoordinations = 0;
 
+    // First Pass: Aggregate Particular Hours
     logs.forEach(log => {
         if (log.type === 'particular' && log.date) {
             const day = getDate(parseISO(log.date));
             const hours = log.duration || 0;
             totalHours += hours;
-            
             // Accumulate hours for this day
             particularHoursByDay[day] = (particularHoursByDay[day] || 0) + hours;
-            
-        } else if (log.type === 'tutorial' && log.startDate && log.endDate) {
+        }
+    });
+
+    // Initialize dailySummaries with particular hours
+    Object.keys(particularHoursByDay).forEach(key => {
+        const day = Number(key);
+        const hours = particularHoursByDay[day];
+        dailySummaries[day] = `Dia ${day} - ${hours}h`;
+    });
+
+    // Second Pass: Process Tutorials
+    logs.forEach(log => {
+        if (log.type === 'tutorial' && log.startDate && log.endDate) {
             const start = parseISO(log.startDate);
             const end = parseISO(log.endDate);
             
@@ -73,7 +84,7 @@ const generateWhatsAppMessage = (logs: WorkLog[], monthName: string): string => 
                     const extrasString = extras.join(" + ");
                     
                     if (dailySummaries[day]) {
-                        // Append with + if exists
+                        // Append with + if exists (e.g. "Dia 21 - 4h + nocturnidad")
                         dailySummaries[day] += ` + ${extrasString}`;
                     } else {
                         // Capitalize first letter if it's the start
@@ -85,60 +96,32 @@ const generateWhatsAppMessage = (logs: WorkLog[], monthName: string): string => 
 
             for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
                 const day = getDate(d);
-                let summary = `Dia ${day} - Tutorial: ${log.description}`;
+                let summary = `Tutorial: ${log.description}`;
                 
                 // Nocturnidad: All days EXCEPT the last one
-                // Check if d is strictly less than end
                 const isLastDay = d.getTime() === end.getTime();
                 
                 if(log.hasNight && !isLastDay) summary += " + nocturnidad";
                 if(log.hasCoordination) summary += " + coordinación";
                 
                  if (dailySummaries[day]) {
-                    // Avoid duplicating if we just added it (unlikely unless overlap)
-                    // But if particular was there, we append.
-                     dailySummaries[day] += ` / Tutorial: ${log.description}`;
-                     if(log.hasNight && !isLastDay) dailySummaries[day] += " + nocturnidad";
-                     if(log.hasCoordination) dailySummaries[day] += " + coordinación";
+                     dailySummaries[day] += ` / ${summary}`;
                 } else {
-                    dailySummaries[day] = summary;
+                    dailySummaries[day] = `Dia ${day} - ${summary}`;
                 }
             }
 
             totalTutorials += (differenceInCalendarDays(end, start) + 1);
             if(log.hasNight) {
                 let nightDays = differenceInCalendarDays(end, start);
-                // logic in calculation was: nights = arrivesPrior ? nightBase + 1 : nightBase;
-                // nightBase = days - 1 (which matches "all except last")
-                // So yes, +1 for prior day
                 if (log.arrivesPrior) nightDays++; 
                 totalNights += nightDays > 0 ? nightDays : 0;
             }
             if(log.hasCoordination) {
                  let coordDays = differenceInCalendarDays(end, start) + 1;
-                 if (log.arrivesPrior) coordDays++; // Assuming coordination applies to prior day too?
+                 if (log.arrivesPrior) coordDays++;
                  totalCoordinations += coordDays;
             }
-        }
-    });
-
-    // Merge particular hours into daily summaries
-    Object.keys(particularHoursByDay).forEach(key => {
-        const day = Number(key);
-        // If there's already a tutorial on this day, we might have a conflict or need to append
-        // But usually particular and tutorial don't overlap on same day logic-wise for this display, 
-        // or if they do, we can show both.
-        // For now, let's assume we just want the line for particular hours.
-        // If a day has both, this logic will prefer Tutorial string if receiving mixed types, 
-        // but here we are building the strings.
-        
-        const hours = particularHoursByDay[day];
-        const particularString = `Dia ${day} - ${hours}h`;
-        
-        if (dailySummaries[day]) {
-            dailySummaries[day] += ` / ${hours}h (Particular)`;
-        } else {
-            dailySummaries[day] = particularString;
         }
     });
 
