@@ -59,22 +59,60 @@ const generateWhatsAppMessage = (logs: WorkLog[], monthName: string): string => 
             const start = parseISO(log.startDate);
             const end = parseISO(log.endDate);
             
+            // Handle day before if arrivesPrior is true
+            if (log.arrivesPrior) {
+                const priorDate = new Date(start);
+                priorDate.setDate(priorDate.getDate() - 1);
+                const day = getDate(priorDate);
+                let summary = `Dia ${day} - Tutorial: ${log.description}`;
+                // Explicitly asked to add if active, assuming flags check
+                if(log.hasNight) summary += " + nocturnidad";
+                if(log.hasCoordination) summary += " + coordinación";
+                
+                // If there's a collision with existing particular, append?
+                // Reusing same logic as loop
+               if (dailySummaries[day]) {
+                    dailySummaries[day] += ` / ${summary}`;
+                } else {
+                    dailySummaries[day] = summary;
+                }
+            }
+
             for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
                 const day = getDate(d);
                 let summary = `Dia ${day} - Tutorial: ${log.description}`;
-                if(log.hasNight) summary += " + nocturnidad";
+                
+                // Nocturnidad: All days EXCEPT the last one
+                // Check if d is strictly less than end
+                const isLastDay = d.getTime() === end.getTime();
+                
+                if(log.hasNight && !isLastDay) summary += " + nocturnidad";
                 if(log.hasCoordination) summary += " + coordinación";
-                dailySummaries[day] = summary;
+                
+                 if (dailySummaries[day]) {
+                    // Avoid duplicating if we just added it (unlikely unless overlap)
+                    // But if particular was there, we append.
+                     dailySummaries[day] += ` / Tutorial: ${log.description}`;
+                     if(log.hasNight && !isLastDay) dailySummaries[day] += " + nocturnidad";
+                     if(log.hasCoordination) dailySummaries[day] += " + coordinación";
+                } else {
+                    dailySummaries[day] = summary;
+                }
             }
 
             totalTutorials += (differenceInCalendarDays(end, start) + 1);
             if(log.hasNight) {
                 let nightDays = differenceInCalendarDays(end, start);
-                if (log.arrivesPrior) nightDays++;
+                // logic in calculation was: nights = arrivesPrior ? nightBase + 1 : nightBase;
+                // nightBase = days - 1 (which matches "all except last")
+                // So yes, +1 for prior day
+                if (log.arrivesPrior) nightDays++; 
                 totalNights += nightDays > 0 ? nightDays : 0;
             }
             if(log.hasCoordination) {
-                 totalCoordinations += (differenceInCalendarDays(end, start) + 1);
+                 let coordDays = differenceInCalendarDays(end, start) + 1;
+                 if (log.arrivesPrior) coordDays++; // Assuming coordination applies to prior day too?
+                 totalCoordinations += coordDays;
             }
         }
     });
