@@ -108,10 +108,24 @@ export function calculateEarnings(log: Partial<WorkLog>, settings: UserSettings)
     finalAmount *= IRPF_FACTOR;
   }
   
+// ... existing code ...
   return { 
     amount: parseFloat(finalAmount.toFixed(2)), 
     isGross,
     rateApplied: calculationResult.rateApplied,
     duration: calculationResult.duration
   };
+}
+
+export function calculateForfaitStats(particularHours: number, tutorialDays: number) {
+    const totalHours = particularHours + (tutorialDays * 6);
+    // Formula: (Total Hours / 400) * 540
+    // But the user prompt said: horas totales / 400 * (1080 * 0.5)
+    // 1080 * 0.5 is 540. So yes, (Total Hours / 400) * 540.
+    const payment = (totalHours / 400) * 540;
+    
+    return {
+        totalHours,
+        payment
+    };
 }

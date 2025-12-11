@@ -12,7 +12,7 @@ import { collection, doc } from "firebase/firestore";
 import { format, isSameMonth, parseISO, differenceInCalendarDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { UserCreateWorkLogDialog } from "@/components/work-log/user-dialog";
-import { calculateMonthlyStats } from "@/lib/calculations";
+import { calculateMonthlyStats, calculateForfaitStats } from "@/lib/calculations";
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { WorkLogDetailsDialog } from "@/components/work-log/work-log-details-dialog";
@@ -165,6 +165,20 @@ function UserDashboard() {
              <StatCard title="Días Tutorial (Mes)" value={monthlyStats.tutorialDays} icon={BookOpen} colorClass="text-purple-500" unit="días" />
              <StatCard title="Total Días Trabajados (Mes)" value={monthlyStats.totalDaysWorked} icon={Briefcase} colorClass="text-indigo-500" unit="días" />
         </div>
+        
+        {user && ['jandrobamo@gmail.com', 'velezgutierrezhugo@gmail.com'].includes(user.email || '') && (
+            <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {(() => {
+                    const { totalHours, payment } = calculateForfaitStats(monthlyStats.particularHours, monthlyStats.tutorialDays);
+                    return (
+                        <>
+                            <StatCard title="Horas Totales (Forfait)" value={totalHours} icon={Clock} colorClass="text-orange-500" unit="h" />
+                            <StatCard title="Pago Forfait Estimado" value={payment} icon={DollarSign} colorClass="text-teal-500" unit="€" />
+                        </>
+                    )
+                })()}
+            </div>
+        )}
 
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Registros Recientes</h2>

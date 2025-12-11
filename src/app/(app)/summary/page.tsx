@@ -13,6 +13,7 @@ import { format, parseISO, differenceInCalendarDays, getDate } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { calculateForfaitStats } from '@/lib/calculations';
 
 interface MonthlyStats {
     earnings: number;
@@ -215,6 +216,16 @@ export default function SummaryPage() {
                         <StatDisplay icon={Clock} label="Horas Totales (Part.)" value={stats.total.particularHours.toFixed(1)} unit="h" colorClass="text-blue-500" />
                         <StatDisplay icon={Briefcase} label="Días Totales (Tut.)" value={stats.total.tutorialDays} unit="días" colorClass="text-purple-500" />
                         <StatDisplay icon={CalendarIcon} label="Días Totales Trabajados" value={stats.total.totalDaysWorked} unit="días" colorClass="text-indigo-500" />
+                        
+                        {user && ['jandrobamo@gmail.com', 'velezgutierrezhugo@gmail.com'].includes(user.email || '') && (() => {
+                             const { totalHours, payment } = calculateForfaitStats(stats.total.particularHours, stats.total.tutorialDays);
+                             return (
+                                <>
+                                    <StatDisplay icon={Clock} label="Horas Totales (Forfait)" value={totalHours.toFixed(1)} unit="h" colorClass="text-orange-500" />
+                                    <StatDisplay icon={DollarSign} label="Pago Forfait Histórico" value={`€${payment.toFixed(2)}`} colorClass="text-teal-500" />
+                                </>
+                             );
+                        })()}
                     </CardContent>
                 </Card>
             )}
@@ -247,6 +258,16 @@ export default function SummaryPage() {
                                                     <StatDisplay icon={Clock} label="Horas (Part.)" value={monthData.particularHours.toFixed(1)} unit="h" colorClass="text-blue-500"/>
                                                     <StatDisplay icon={Briefcase} label="Días (Tut.)" value={monthData.tutorialDays} unit="días" colorClass="text-purple-500"/>
                                                     <StatDisplay icon={CalendarIcon} label="Días Trabajados" value={monthData.workedDays.size} unit="días" colorClass="text-indigo-500"/>
+                                                    
+                                                     {user && ['jandrobamo@gmail.com', 'velezgutierrezhugo@gmail.com'].includes(user.email || '') && (() => {
+                                                        const { totalHours, payment } = calculateForfaitStats(monthData.particularHours, monthData.tutorialDays);
+                                                        return (
+                                                            <>
+                                                                <StatDisplay icon={Clock} label="Horas Forfait (Mes)" value={totalHours.toFixed(1)} unit="h" colorClass="text-orange-500" />
+                                                                <StatDisplay icon={DollarSign} label="Pago Forfait (Mes)" value={`€${payment.toFixed(2)}`} colorClass="text-teal-500" />
+                                                            </>
+                                                        );
+                                                    })()}
                                                 </div>
                                                 <div className="flex justify-end">
                                                     <Button onClick={() => handleSendWhatsApp(uniqueLogs, simpleMonthName)}>
