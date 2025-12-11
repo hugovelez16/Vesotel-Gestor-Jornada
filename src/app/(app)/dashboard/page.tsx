@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { WorkLogDetailsDialog } from "@/components/work-log/work-log-details-dialog";
 import { EditWorkLogDialog, DeleteWorkLogAlert } from "@/app/admin/users/page";
 
-const StatCard = ({ title, value, icon: Icon, colorClass = "text-primary", unit }: { title: string, value: number, icon: React.ElementType, colorClass?: string, unit?: string }) => (
+const StatCard = ({ title, value, icon: Icon, colorClass = "text-primary", unit, secondaryValue }: { title: string, value: number, icon: React.ElementType, colorClass?: string, unit?: string, secondaryValue?: string }) => (
     <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
@@ -28,6 +28,7 @@ const StatCard = ({ title, value, icon: Icon, colorClass = "text-primary", unit 
             <div className="flex items-end">
                 <span className="text-2xl font-bold">{value.toFixed(2)}</span>
                 {unit && <span className="text-sm font-medium text-muted-foreground ml-1">{unit}</span>}
+                {secondaryValue && <span className="text-xs text-muted-foreground ml-2">{secondaryValue}</span>}
             </div>
         </CardContent>
     </Card>
@@ -162,7 +163,14 @@ function UserDashboard() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
              <StatCard title="Ingresos (Mes Actual)" value={monthlyStats.totalEarnings} icon={DollarSign} colorClass="text-green-500" unit="€" />
              <StatCard title="Horas Particulares (Mes)" value={monthlyStats.particularHours} icon={Clock} colorClass="text-blue-500" unit="h" />
-             <StatCard title="Días Tutorial (Mes)" value={monthlyStats.tutorialDays} icon={BookOpen} colorClass="text-purple-500" unit="días" />
+             <StatCard 
+                title="Días Tutorial (Mes)" 
+                value={monthlyStats.tutorialDays} 
+                icon={BookOpen} 
+                colorClass="text-purple-500" 
+                unit="días" 
+                secondaryValue={`(${monthlyStats.tutorialDays * 6}h)`}
+             />
              <StatCard title="Total Días Trabajados (Mes)" value={monthlyStats.totalDaysWorked} icon={Briefcase} colorClass="text-indigo-500" unit="días" />
         </div>
         

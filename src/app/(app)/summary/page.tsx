@@ -23,7 +23,7 @@ interface MonthlyStats {
     logs: WorkLog[];
 }
 
-const StatDisplay = ({ icon: Icon, label, value, unit, colorClass = 'text-primary' }: { icon: React.ElementType, label: string, value: string | number, unit?: string, colorClass?: string }) => (
+const StatDisplay = ({ icon: Icon, label, value, unit, colorClass = 'text-primary', secondaryValue }: { icon: React.ElementType, label: string, value: string | number, unit?: string, colorClass?: string, secondaryValue?: string }) => (
   <div className="flex items-start gap-4 rounded-lg bg-slate-50 p-4 border">
     <div className={cn("rounded-full bg-slate-200 p-3", colorClass)}>
       <Icon className="h-6 w-6" />
@@ -32,6 +32,7 @@ const StatDisplay = ({ icon: Icon, label, value, unit, colorClass = 'text-primar
       <p className="text-sm font-medium text-muted-foreground">{label}</p>
       <p className="text-2xl font-bold">
         {value} {unit && <span className="text-lg font-normal text-muted-foreground">{unit}</span>}
+        {secondaryValue && <span className="text-sm font-normal text-muted-foreground ml-2">{secondaryValue}</span>}
       </p>
     </div>
   </div>
@@ -265,7 +266,7 @@ export default function SummaryPage() {
                     <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <StatDisplay icon={DollarSign} label="Ingresos Totales" value={`€${stats.total.earnings.toFixed(2)}`} colorClass="text-green-500" />
                         <StatDisplay icon={Clock} label="Horas Totales (Part.)" value={stats.total.particularHours.toFixed(1)} unit="h" colorClass="text-blue-500" />
-                        <StatDisplay icon={Briefcase} label="Días Totales (Tut.)" value={stats.total.tutorialDays} unit="días" colorClass="text-purple-500" />
+                        <StatDisplay icon={Briefcase} label="Días Totales (Tut.)" value={stats.total.tutorialDays} unit="días" colorClass="text-purple-500" secondaryValue={`(${stats.total.tutorialDays * 6}h)`} />
                         <StatDisplay icon={CalendarIcon} label="Días Totales Trabajados" value={stats.total.totalDaysWorked} unit="días" colorClass="text-indigo-500" />
                         
                         {user && ['jandrobamo@gmail.com', 'velezgutierrezhugo@gmail.com'].includes(user.email || '') && (() => {
@@ -307,7 +308,7 @@ export default function SummaryPage() {
                                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-md bg-slate-50 border">
                                                     <StatDisplay icon={DollarSign} label="Ingresos" value={`€${monthData.earnings.toFixed(2)}`} colorClass="text-green-500"/>
                                                     <StatDisplay icon={Clock} label="Horas (Part.)" value={monthData.particularHours.toFixed(1)} unit="h" colorClass="text-blue-500"/>
-                                                    <StatDisplay icon={Briefcase} label="Días (Tut.)" value={monthData.tutorialDays} unit="días" colorClass="text-purple-500"/>
+                                                    <StatDisplay icon={Briefcase} label="Días (Tut.)" value={monthData.tutorialDays} unit="días" colorClass="text-purple-500" secondaryValue={`(${monthData.tutorialDays * 6}h)`} />
                                                     <StatDisplay icon={CalendarIcon} label="Días Trabajados" value={monthData.workedDays.size} unit="días" colorClass="text-indigo-500"/>
                                                     
                                                      {user && ['jandrobamo@gmail.com', 'velezgutierrezhugo@gmail.com'].includes(user.email || '') && (() => {
