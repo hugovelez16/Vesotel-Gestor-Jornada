@@ -64,17 +64,22 @@ const generateWhatsAppMessage = (logs: WorkLog[], monthName: string): string => 
                 const priorDate = new Date(start);
                 priorDate.setDate(priorDate.getDate() - 1);
                 const day = getDate(priorDate);
-                let summary = `Dia ${day} - Tutorial: ${log.description}`;
-                // Explicitly asked to add if active, assuming flags check
-                if(log.hasNight) summary += " + nocturnidad";
-                if(log.hasCoordination) summary += " + coordinación";
                 
-                // If there's a collision with existing particular, append?
-                // Reusing same logic as loop
-               if (dailySummaries[day]) {
-                    dailySummaries[day] += ` / ${summary}`;
-                } else {
-                    dailySummaries[day] = summary;
+                const extras: string[] = [];
+                if(log.hasNight) extras.push("nocturnidad");
+                if(log.hasCoordination) extras.push("coordinación");
+                
+                if (extras.length > 0) {
+                    const extrasString = extras.join(" + ");
+                    
+                    if (dailySummaries[day]) {
+                        // Append with + if exists
+                        dailySummaries[day] += ` + ${extrasString}`;
+                    } else {
+                        // Capitalize first letter if it's the start
+                        const capitalized = extrasString.charAt(0).toUpperCase() + extrasString.slice(1);
+                        dailySummaries[day] = `Dia ${day} - ${capitalized}`;
+                    }
                 }
             }
 
