@@ -632,12 +632,74 @@ function AdminDashboardStats() {
   )
 }
 
+
+function ExportJandroButton() {
+  const firestore = useFirestore();
+  const [downloading, setDownloading] = useState(false);
+
+  const handleExport = async () => {
+    if (!firestore) return;
+    setDownloading(true);
+    try {
+      const targetEmail = "jandrobamo@gmail.com";
+      // Using the exact path requested by user:
+      const logsCollectionRef = collection(firestore, `artifacts/${APP_ID}/users/${targetEmail}/work_logs`);
+      const snapshot = await getDocs(logsCollectionRef);
+      
+      const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      if (logs.length === 0) {
+        alert("No records found for jandrobamo@gmail.com at the specified path.");
+        setDownloading(false);
+        return;
+      }
+
+      // Convert to CSV
+      const headers = Array.from(new Set(logs.flatMap(log => Object.keys(log))));
+      const csvContent = [
+        headers.join(','),
+        ...logs.map(log => headers.map(header => {
+            // @ts-ignore
+            let val = log[header];
+            if (val === null || val === undefined) return '';
+            if (typeof val === 'object') return JSON.stringify(val).replace(/,/g, ';');
+            return String(val).replace(/,/g, ';');
+        }).join(','))
+      ].join('\n');
+
+      // Trigger Download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "jandro_worklogs_full.csv");
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+    } catch (e) {
+      console.error(e);
+      alert("Error exporting CSV: " + e);
+    }
+    setDownloading(false);
+  };
+
+  return (
+    <Button onClick={handleExport} disabled={downloading} className="mt-4 bg-green-600 hover:bg-green-700">
+      <DollarSign className="mr-2 h-4 w-4" />
+      {downloading ? "Exporting..." : "Exportar CSV Jandro (TODO)"}
+    </Button>
+  );
+}
+
 export default function AdminDashboardPage() {
   return (
     <div className="space-y-8">
        <div>
         <h1 className="text-3xl font-bold tracking-tight">Panel de Administrador</h1>
         <p className="text-muted-foreground">Gestiona usuarios y la actividad de la aplicación.</p>
+        <ExportJandroButton />
       </div>
        <Tabs defaultValue="timeline" className="space-y-4">
         <TabsList className="grid w-full grid-cols-2 bg-slate-100 p-1">
