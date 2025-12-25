@@ -633,7 +633,7 @@ function AdminDashboardStats() {
 }
 
 
-function ExportJandroButton() {
+function ExportAllDataButton() {
   const firestore = useFirestore();
   const [downloading, setDownloading] = useState(false);
 
@@ -641,53 +641,69 @@ function ExportJandroButton() {
     if (!firestore) return;
     setDownloading(true);
     try {
-      const targetEmail = "jandrobamo@gmail.com";
-      
-      // Find the user's UID first
+      // 1. Fetch all users
       const usersRef = collection(firestore, `artifacts/${APP_ID}/public/data/users`);
-      const q = query(usersRef, where("email", "==", targetEmail));
-      const userSnapshot = await getDocs(q);
+      const usersSnapshot = await getDocs(usersRef);
+      const users = usersSnapshot.docs.map(doc => doc.data() as UserProfile);
 
-      if (userSnapshot.empty) {
-          alert(`User ${targetEmail} not found.`);
-          setDownloading(false);
-          return;
-      }
+      // 2. Fetch work logs for each user
+      const allLogsPromises = users.map(async (user) => {
+        try {
+            const logsCollectionRef = collection(firestore, `artifacts/${APP_ID}/users/${user.uid}/work_logs`);
+            const snapshot = await getDocs(logsCollectionRef);
+            return snapshot.docs.map(doc => ({
+            ...doc.data(),
+            id: doc.id,
+            userDisplayName: `${user.firstName} ${user.lastName}`,
+            userEmail: user.email
+            }));
+        } catch (err) {
+            console.error(`Error fetching logs for user ${user.email}:`, err);
+            return [];
+        }
+      });
 
-      const targetUid = userSnapshot.docs[0].id;
+      const results = await Promise.all(allLogsPromises);
+      const logs = results.flat();
 
-      // Use the correct UID path
-      const logsCollectionRef = collection(firestore, `artifacts/${APP_ID}/users/${targetUid}/work_logs`);
-      // Use query(logsCollectionRef) to be safe (though collection ref is also queryable directly in getDocs usually)
-      const snapshot = await getDocs(query(logsCollectionRef));
-      
-      const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      
       if (logs.length === 0) {
-        alert("No work log records found for jandrobamo@gmail.com.");
+        alert("No hay registros para exportar.");
         setDownloading(false);
         return;
       }
 
-      // Convert to CSV
+      // 3. Convert to CSV
       const headers = Array.from(new Set(logs.flatMap(log => Object.keys(log))));
+      
+      // Prioritize identifying columns
+      const priorityCols = ['userDisplayName', 'userEmail', 'date', 'startDate', 'type', 'amount'];
+      const sortedHeaders = [
+          ...priorityCols.filter(h => headers.includes(h)),
+          ...headers.filter(h => !priorityCols.includes(h))
+      ];
+
       const csvContent = [
-        headers.join(','),
-        ...logs.map(log => headers.map(header => {
+        sortedHeaders.join(','),
+        ...logs.map(log => sortedHeaders.map(header => {
             // @ts-ignore
             let val = log[header];
             if (val === null || val === undefined) return '';
-            if (typeof val === 'object') return JSON.stringify(val).replace(/,/g, ';');
-            return String(val).replace(/,/g, ';');
+            if (typeof val === 'object') return JSON.stringify(val).replace(/,/g, ';').replace(/"/g, '""'); // Escape JSON and quotes
+             // Escape quotes in strings and replace commas
+            const strVal = String(val);
+             if (strVal.includes(',') || strVal.includes('"') || strVal.includes('\n')) {
+                 return `"${strVal.replace(/"/g, '""')}"`;
+             }
+            return strVal;
         }).join(','))
       ].join('\n');
 
-      // Trigger Download
+      // 4. Trigger Download
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      link.setAttribute("download", "jandro_worklogs_full.csv");
+      link.setAttribute("download", `worklogs_full_export_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`);
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
@@ -703,7 +719,7 @@ function ExportJandroButton() {
   return (
     <Button onClick={handleExport} disabled={downloading} className="mt-4 bg-green-600 hover:bg-green-700">
       <DollarSign className="mr-2 h-4 w-4" />
-      {downloading ? "Exporting..." : "Exportar CSV Jandro (TODO)"}
+      {downloading ? "Exportando..." : "Exportar Todo (CSV)"}
     </Button>
   );
 }
@@ -714,7 +730,7 @@ export default function AdminDashboardPage() {
        <div>
         <h1 className="text-3xl font-bold tracking-tight">Panel de Administrador</h1>
         <p className="text-muted-foreground">Gestiona usuarios y la actividad de la aplicación.</p>
-        <ExportJandroButton />
+        <ExportAllDataButton />
       </div>
        <Tabs defaultValue="timeline" className="space-y-4">
         <TabsList className="grid w-full grid-cols-2 bg-slate-100 p-1">
