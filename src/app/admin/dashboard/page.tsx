@@ -642,14 +642,29 @@ function ExportJandroButton() {
     setDownloading(true);
     try {
       const targetEmail = "jandrobamo@gmail.com";
-      // Using the exact path requested by user:
-      const logsCollectionRef = collection(firestore, `artifacts/${APP_ID}/users/${targetEmail}/work_logs`);
-      const snapshot = await getDocs(logsCollectionRef);
+      
+      // Find the user's UID first
+      const usersRef = collection(firestore, `artifacts/${APP_ID}/public/data/users`);
+      const q = query(usersRef, where("email", "==", targetEmail));
+      const userSnapshot = await getDocs(q);
+
+      if (userSnapshot.empty) {
+          alert(`User ${targetEmail} not found.`);
+          setDownloading(false);
+          return;
+      }
+
+      const targetUid = userSnapshot.docs[0].id;
+
+      // Use the correct UID path
+      const logsCollectionRef = collection(firestore, `artifacts/${APP_ID}/users/${targetUid}/work_logs`);
+      // Use query(logsCollectionRef) to be safe (though collection ref is also queryable directly in getDocs usually)
+      const snapshot = await getDocs(query(logsCollectionRef));
       
       const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
       if (logs.length === 0) {
-        alert("No records found for jandrobamo@gmail.com at the specified path.");
+        alert("No work log records found for jandrobamo@gmail.com.");
         setDownloading(false);
         return;
       }
