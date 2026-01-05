@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, where, getDocs, DocumentData, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, DocumentData, doc, getDoc, collectionGroup } from 'firebase/firestore';
 import { APP_ID, ADMIN_EMAIL } from '@/lib/config';
 import type { UserProfile, WorkLog, UserSettings } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -349,7 +349,7 @@ function AdminTimeline() {
     const hours = Array.from({ length: totalHours + 1 }, (_, i) => i + START_HOUR);
 
     const timeToPosition = (time: string) => {
-        if (!time) return { left: 0, width: 0 };
+        if (!time) return 0;
         const [h, m] = time.split(':').map(Number);
         const minutes = (h * 60) + m;
         const startMinutes = START_HOUR * 60;
@@ -641,48 +641,41 @@ function ExportAllDataButton() {
     if (!firestore) return;
     setDownloading(true);
     try {
-      // 1. Fetch all users
+      // 1. Fetch all users to map UIDs to Names
       const usersRef = collection(firestore, `artifacts/${APP_ID}/public/data/users`);
       const usersSnapshot = await getDocs(usersRef);
-      const users = usersSnapshot.docs.map(doc => doc.data() as UserProfile);
-
-      // 2. Fetch work logs for each user
-      const allLogsPromises = users.map(async (user) => {
-        const fetchFromPath = async (path: string) => {
-             try {
-                const logsCollectionRef = collection(firestore, path);
-                const snapshot = await getDocs(logsCollectionRef);
-                return snapshot.docs.map(doc => ({
-                    ...doc.data(),
-                    id: doc.id,
-                    userDisplayName: `${user.firstName} ${user.lastName}`,
-                    userEmail: user.email
-                }));
-             } catch (err) {
-                 console.error(`Error fetching logs for user ${user.email} at ${path}:`, err);
-                 return [];
-             }
-        };
-
-        const pathsToTry = [
-            `artifacts/${APP_ID}/users/${user.uid}/work_logs`,
-            `artifacts/${APP_ID}/users/${user.email}/work_logs`
-        ];
-
-        const results = await Promise.all(pathsToTry.map(p => fetchFromPath(p)));
-        const flatResults = results.flat();
-        
-        // Deduplicate by ID
-        const seen = new Set();
-        return flatResults.filter(item => {
-            const duplicate = seen.has(item.id);
-            seen.add(item.id);
-            return !duplicate;
-        });
+      const userMap = new Map<string, UserProfile>();
+      usersSnapshot.docs.forEach(doc => {
+          const data = doc.data() as UserProfile;
+          userMap.set(doc.id, data); // Map by UID
+          if (data.email) userMap.set(data.email, data); // Map by Email too, just in case
       });
 
-      const results = await Promise.all(allLogsPromises);
-      const logs = results.flat();
+      // 2. Fetch ALL work_logs using collectionGroup
+      // This ignores the parent path and finds all collections named 'work_logs'
+      const logsQuery = query(collectionGroup(firestore, 'work_logs'));
+      const snapshot = await getDocs(logsQuery);
+      
+      const logs = snapshot.docs.map(doc => {
+          // Identify the user.
+          // The structure is usually .../users/{userId}/work_logs/{logId}
+          // doc.ref.parent is the collection 'work_logs'
+          // doc.ref.parent.parent is the user document reference (e.g. users/jandrobamo@gmail.com)
+          const userDocRef = doc.ref.parent.parent;
+          const userId = userDocRef?.id || 'unknown';
+          
+          const userProfile = userMap.get(userId);
+          const userDisplayName = userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : 'Unknown';
+          const userEmail = userProfile ? userProfile.email : (userId.includes('@') ? userId : 'Unknown');
+
+          return {
+            ...doc.data(),
+            id: doc.id,
+            userDisplayName,
+            userEmail,
+            _sourcePath: doc.ref.path // Debug info
+          };
+      });
 
       if (logs.length === 0) {
         alert("No hay registros para exportar.");
@@ -706,8 +699,7 @@ function ExportAllDataButton() {
             // @ts-ignore
             let val = log[header];
             if (val === null || val === undefined) return '';
-            if (typeof val === 'object') return JSON.stringify(val).replace(/,/g, ';').replace(/"/g, '""'); // Escape JSON and quotes
-             // Escape quotes in strings and replace commas
+            if (typeof val === 'object') return JSON.stringify(val).replace(/,/g, ';').replace(/"/g, '""'); 
             const strVal = String(val);
              if (strVal.includes(',') || strVal.includes('"') || strVal.includes('\n')) {
                  return `"${strVal.replace(/"/g, '""')}"`;
@@ -721,7 +713,7 @@ function ExportAllDataButton() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      link.setAttribute("download", `worklogs_full_export_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`);
+      link.setAttribute("download", `worklogs_full_export_global_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`);
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
@@ -737,7 +729,7 @@ function ExportAllDataButton() {
   return (
     <Button onClick={handleExport} disabled={downloading} className="mt-4 bg-green-600 hover:bg-green-700">
       <DollarSign className="mr-2 h-4 w-4" />
-      {downloading ? "Exportando..." : "Exportar Todo (CSV)"}
+      {downloading ? "Exportando..." : "Exportar Todo (Global)"}
     </Button>
   );
 }
