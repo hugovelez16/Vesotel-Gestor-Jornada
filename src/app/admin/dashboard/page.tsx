@@ -648,19 +648,37 @@ function ExportAllDataButton() {
 
       // 2. Fetch work logs for each user
       const allLogsPromises = users.map(async (user) => {
-        try {
-            const logsCollectionRef = collection(firestore, `artifacts/${APP_ID}/users/${user.uid}/work_logs`);
-            const snapshot = await getDocs(logsCollectionRef);
-            return snapshot.docs.map(doc => ({
-            ...doc.data(),
-            id: doc.id,
-            userDisplayName: `${user.firstName} ${user.lastName}`,
-            userEmail: user.email
-            }));
-        } catch (err) {
-            console.error(`Error fetching logs for user ${user.email}:`, err);
-            return [];
-        }
+        const fetchFromPath = async (path: string) => {
+             try {
+                const logsCollectionRef = collection(firestore, path);
+                const snapshot = await getDocs(logsCollectionRef);
+                return snapshot.docs.map(doc => ({
+                    ...doc.data(),
+                    id: doc.id,
+                    userDisplayName: `${user.firstName} ${user.lastName}`,
+                    userEmail: user.email
+                }));
+             } catch (err) {
+                 console.error(`Error fetching logs for user ${user.email} at ${path}:`, err);
+                 return [];
+             }
+        };
+
+        const pathsToTry = [
+            `artifacts/${APP_ID}/users/${user.uid}/work_logs`,
+            `artifacts/${APP_ID}/users/${user.email}/work_logs`
+        ];
+
+        const results = await Promise.all(pathsToTry.map(p => fetchFromPath(p)));
+        const flatResults = results.flat();
+        
+        // Deduplicate by ID
+        const seen = new Set();
+        return flatResults.filter(item => {
+            const duplicate = seen.has(item.id);
+            seen.add(item.id);
+            return !duplicate;
+        });
       });
 
       const results = await Promise.all(allLogsPromises);
